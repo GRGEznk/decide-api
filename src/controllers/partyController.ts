@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { pool } from '../config/db';
+import type { RowDataPacket } from 'mysql2';
 
 export const getParties = async (req: Request, res: Response) => {
     try {
@@ -121,5 +122,67 @@ export const deleteParty = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Error al eliminar partido:', error);
         res.status(500).json({ error: 'Error al eliminar el partido' });
+    }
+};
+
+export const getPartyAnswers = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const query = `
+            SELECT pregunta_id, valor, fuente 
+            FROM PartidoRespuesta 
+            WHERE partido_id = ?
+        `;
+        const [rows] = await pool.query(query, [id]);
+        res.json(rows);
+    } catch (error) {
+        console.error('Error al obtener respuestas del partido:', error);
+        res.status(500).json({ error: 'Error al obtener respuestas' });
+    }
+};
+
+export const savePartyAnswers = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { respuestas } = req.body; // Array of { pregunta_id, valor, fuente }
+
+        if (!Array.isArray(respuestas)) {
+            return res.status(400).json({ error: 'El formato de respuestas es inválido' });
+        }
+
+        const connection = await pool.getConnection();
+        const partyId = parseInt(id);
+
+        try {
+            await connection.beginTransaction();
+
+            for (const resp of respuestas) {
+                const { pregunta_id, valor, fuente } = resp;
+
+                // Validar rango -2 a +2
+                if (valor < -2 || valor > 2) {
+                    throw new Error(`Valor inválido para pregunta ${pregunta_id}: ${valor}`);
+                }
+
+                await connection.query(`
+                    INSERT INTO PartidoRespuesta (partido_id, pregunta_id, valor, fuente)
+                    VALUES (?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE valor = VALUES(valor), fuente = VALUES(fuente)
+                `, [partyId, pregunta_id, valor, fuente || null]);
+            }
+
+            await connection.commit();
+            res.json({ message: 'Respuestas guardadas exitosamente' });
+
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+
+    } catch (error: any) {
+        console.error('Error al guardar respuestas:', error);
+        res.status(500).json({ error: error.message || 'Error al guardar respuestas' });
     }
 };
