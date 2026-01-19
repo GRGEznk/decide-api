@@ -15,7 +15,7 @@ export const getParties = async (req: Request, res: Response) => {
 export const getPartyPositions = async (req: Request, res: Response) => {
     try {
         const query = `
-      SELECT p.nombre, p.sigla, c.posicion_x, c.posicion_y 
+      SELECT p.id, p.nombre, p.sigla, c.posicion_x, c.posicion_y, c.fecha_calculo 
       FROM Partido p 
       JOIN PartidoPosicionCache c ON p.id = c.partido_id
     `;
@@ -151,7 +151,7 @@ export const savePartyAnswers = async (req: Request, res: Response) => {
         }
 
         const connection = await pool.getConnection();
-        const partyId = parseInt(id);
+        const partyId = parseInt(id as string);
 
         try {
             await connection.beginTransaction();
