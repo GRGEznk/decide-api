@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { pool } from '../config/db';
 
 export const getStats = async (req: Request, res: Response) => {

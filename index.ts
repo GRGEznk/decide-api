@@ -5,6 +5,7 @@ import userRoutes from './src/routes/userRoutes';
 import questionRoutes from './src/routes/questionRoutes';
 import partyRoutes from './src/routes/partyRoutes';
 import statsRoutes from './src/routes/statsRoutes';
+import quizRoutes from './src/routes/quizRoutes';
 
 const app = express();
 const port = 3001;
@@ -19,6 +20,7 @@ app.use('/api/usuarios', userRoutes);
 app.use('/api/preguntas', questionRoutes);
 app.use('/api', partyRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/quiz', quizRoutes);
 
 // prueba
 app.get('/', (req, res) => {
