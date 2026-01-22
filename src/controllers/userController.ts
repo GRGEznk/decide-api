@@ -27,9 +27,10 @@ export const createUser = async (req: Request, res: Response) => {
     }
 
     try {
+        const hashedPassword = await Bun.password.hash(password);
         const [result] = await pool.query(
             'INSERT INTO Usuario (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)',
-            [nombre, email, password, rol]
+            [nombre, email, hashedPassword, rol]
         );
         const insertId = (result as any).insertId;
         res.status(201).json({ id: insertId, nombre, email, rol });
@@ -56,9 +57,10 @@ export const updateUser = async (req: Request, res: Response) => {
                 return;
             }
 
+            const hashedPassword = await Bun.password.hash(password);
             await pool.query(
                 'UPDATE Usuario SET nombre = ?, email = ?, password_hash = ?, rol = ? WHERE id = ?',
-                [nombre, email, password, rol, id]
+                [nombre, email, hashedPassword, rol, id]
             );
         } else {
             await pool.query(

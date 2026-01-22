@@ -30,8 +30,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         }
 
         const user = users[0];
+        
+        const isMatch = await Bun.password.verify(password, user.password_hash);
 
-        if (user.password_hash === password) {
+        if (isMatch) {
             // limpiar intentos si logro loguearse
             loginAttempts.delete(email);
 
@@ -74,9 +76,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     }
 
     try {
+        const hashedPassword = await Bun.password.hash(password);
         const [result] = await pool.query(
             'INSERT INTO Usuario (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)',
-            [nombre, email, password, 'user']
+            [nombre, email, hashedPassword, 'user']
         );
         const insertId = (result as any).insertId;
         res.status(201).json({ id: insertId, nombre, email, rol: 'user' });
