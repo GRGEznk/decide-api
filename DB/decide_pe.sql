@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 20-01-2026 a las 19:29:59
+-- Tiempo de generación: 25-01-2026 a las 19:50:43
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -227,7 +227,7 @@ INSERT INTO `partidoposicioncache` (`partido_id`, `posicion_x`, `posicion_y`, `f
 (50, 0.00, 0.00, '2026-01-18 18:51:46'),
 (51, 0.00, 0.00, '2026-01-18 18:51:46');
 
--- -------------------------------------------------------
+-- --------------------------------------------------------
 
 --
 -- Estructura de tabla para la tabla `partidorespuesta`
@@ -393,6 +393,84 @@ DELIMITER $$
 CREATE TRIGGER `actualizar_posicion_partido_update` AFTER UPDATE ON `partidorespuesta` FOR EACH ROW BEGIN CALL CalcularPosicionPartido(NEW.partido_id); END
 $$
 DELIMITER ;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `partido_metadata`
+--
+
+DROP TABLE IF EXISTS `partido_metadata`;
+CREATE TABLE `partido_metadata` (
+  `id` int(11) NOT NULL,
+  `partido_id` int(11) NOT NULL,
+  `candidato_presidencial` varchar(100) DEFAULT NULL,
+  `lider_partido` varchar(100) DEFAULT NULL,
+  `color_primario` varchar(7) DEFAULT '#000000',
+  `logo_key` varchar(50) NOT NULL,
+  `candidato_key` varchar(50) NOT NULL DEFAULT 'DEFAULT_CANDIDATE',
+  `anio_fundacion` year(4) DEFAULT NULL,
+  `anio_inscripcion_jne` year(4) DEFAULT NULL,
+  `tipo_organizacion` varchar(50) DEFAULT 'Partido Político'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- RELACIONES PARA LA TABLA `partido_metadata`:
+--   `partido_id`
+--       `partido` -> `id`
+--
+
+--
+-- Volcado de datos para la tabla `partido_metadata`
+--
+
+INSERT INTO `partido_metadata` (`id`, `partido_id`, `candidato_presidencial`, `lider_partido`, `color_primario`, `logo_key`, `candidato_key`, `anio_fundacion`, `anio_inscripcion_jne`, `tipo_organizacion`) VALUES
+(1, 6, 'Sin Candidato', 'Sin Lider', '#DB241E', 'ACCION POPULAR', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(2, 7, 'Alfonso Lopez Chau', 'Alfonso Lopez Chau', '#eb0206', 'AHORA NACION', 'A_LCHAU', NULL, NULL, 'Partido Político'),
+(3, 8, 'Ronald Atencio', 'Guillermo Bermejo', '#00a324', 'VENCEREMOS', 'R_ATENCIO', NULL, NULL, 'Alianza Electoral'),
+(4, 9, 'César Acuña', 'César Acuña', '#1e5ba8', 'ALIANZA PARA EL PROGRESO', 'C_ACUNA', NULL, NULL, 'Partido Político'),
+(5, 10, 'José Williams', 'Pedro Cenas Casamayor', '#233d87', 'AVANZA PAIS', 'J_WILLIAMS', NULL, NULL, 'Partido Político'),
+(6, 11, 'Zósimo Cárdenas ', 'Zósimo Cárdenas ', '#0c00ff', 'BATALLA PERU', 'Z_CARDENAS', NULL, NULL, 'Partido Político'),
+(7, 12, 'Álvaro Paz de la Barra', 'Álvaro Paz de la Barra', '#42c553', 'FE EN EL PERU', 'A_DELABARRA', NULL, NULL, 'Partido Político'),
+(8, 13, 'Sin Candidato', 'Ezequiel Jonás Ataucusi Molina', '#0000FF', 'FREPAP', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(9, 14, 'Keiko Fujimori', 'Keiko Fujimori', '#eb6d00', 'FUERZA POPULAR', 'K_FUJIMORI', NULL, NULL, 'Partido Político'),
+(10, 15, 'Fiorella Molinelli', 'Fiorella Molinelli', '#0b00fb', 'FUERZA Y LIBERTAD', 'F_MOLLINELI', NULL, NULL, 'Alianza Electoral'),
+(11, 16, 'Roberto Sánchez Palomino', 'Roberto Sánchez Palomino', '#5cbe12', 'JUNTOS POR EL PERU', 'R_SANCHEZ', NULL, NULL, 'Partido Político'),
+(12, 17, 'Rafael Belaúnde Llosa', 'Rafael Belaúnde Llosa', '#ffff01', 'LIBERTAD POPULAR', 'R_BELAUNDE', NULL, NULL, 'Partido Político'),
+(13, 18, 'Vicente Alanoca', 'Verónika Mendoza', '#e11821', 'NUEVO PERU', 'V_ALANOCA', NULL, NULL, 'Partido Político'),
+(14, 19, 'Enrique Valderrama', 'Enrique Valderrama', '#ff0103', 'APRA', 'E_VALDERRAMA', NULL, NULL, 'Partido Político'),
+(15, 20, 'Sin Candidato', 'Alberto Moreno', '#00b0e1', 'CIUDADANOS POR EL PERU', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(16, 21, 'Ricardo Belmont Cassinelli', 'Ricardo Belmont Cassinelli', '#0b7f3b', 'OBRAS', 'R_BELMONT', NULL, NULL, 'Partido Político'),
+(17, 22, 'Napoleón Becerra García', 'Napoleón Becerra García', '#345091', 'PTE', 'N_BECERRA', NULL, NULL, 'Partido Político'),
+(18, 23, 'Jorge Nieto Montesinos', 'Jorge Nieto Montesinos', '#db2826', 'BUEN GOBIERNO', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(19, 24, 'Charlie Carrasco Salazar', 'Charlie Carrasco Salazar', '#00a640', 'UNIDO PERU', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(20, 25, 'Álex Gonzales Castillo', 'Álex Gonzales Castillo', '#02a051', 'PARTIDO VERDE', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(21, 26, 'Virgilio Acuña Peralta', 'Virgilio Acuña Peralta', '#02943f', 'PERU FEDERAL', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(22, 27, 'George Forsyth', 'Patrica Li Sotelo', '#FF0080', 'SOMOS PERU', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(23, 28, 'Fernando Olivera', 'Fernando Olivera', '#67bd50', 'FRENTE ESPERANZA', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(24, 29, 'Mesías Guevara', 'Luis Durán Rojo', '#4f1b7f', 'PARTIDO MORADO', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(25, 30, 'Carlos Álvarez', 'Vladimir Meza Villarreal', '#ffcb00', 'PAIS PARA TODOS', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(26, 31, 'Herbert Caller Gutierrez', 'Herbert Caller Gutierrez', '#000000', 'PARTIDO PATRIOTICO', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(27, 32, 'Yonhy Lescano', 'Carlos Zeballos', '#0267af', 'COOPERACION POPULAR', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(28, 33, 'Fiorella Molinelli', 'Fiorella Molinelli', '#1f3765', 'FUERZA MODERNA', 'F_MOLLINELI', NULL, NULL, 'Partido Político'),
+(29, 34, 'Wolfgang Grozo', 'Wolfgang Grozo', '#4e86aa', 'INTEGRIDAD DEMOCRATICA', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(30, 35, 'Vladimir Cerrón', 'Vladimir Cerrón', '#e90000', 'PERU LIBRE', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(31, 36, 'Francisco Diez Canseco', 'Francisco Diez Canseco', '#010799', 'PERU ACCION', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(32, 37, 'Mario Vizcarra', 'Martín Vizcarra', '#d1151b', 'PERU PRIMERO', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(33, 38, 'Roberto Chiabra', 'Tomás Gálvez', '#0001f1', '¡SOMOS LIBRES!', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(34, 39, 'Ronald Atencio', 'Guillermo Bermejo', '#d90736', 'VOCES DEL PUEBLO', 'R_ATENCIO', NULL, NULL, 'Partido Político'),
+(35, 40, 'Walter Chirinos Purizaga', 'Walter Chirinos Purizaga', '#df0209', 'PRIN', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(36, 41, 'Roberto Chiabra', 'Javier Bedoya Denegri', '#00934a', 'PPC', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(37, 42, 'Carlos Espá', 'Carlos Espá', '#e20614', 'SICREO', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(38, 43, 'Roberto Chiabra', 'Roberto Chiabra', '#ee3137', 'UNIDAD Y PAZ', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(39, 44, 'Carlos Jaico Carranza', 'Wilson Aragón Ponce', '#de0079', 'PERU MODERNO', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(40, 45, 'José Luna Gálvez', 'José Luna Gálvez', '#0a4e9d', 'PODEMOS PERU', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(41, 46, 'Marisol Pérez Tello', 'Manuel Ato Carrera', '#2252a7', 'PRIMERO LA GENTE', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(42, 47, 'Paul Jaimes Blanco', 'Paul Jaimes Blanco', '#28b227', 'PROGRESEMOS', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(43, 48, 'Rafael López Aliaga', 'Rafael López Aliaga', '#049ad7', 'RENOVACION POPULAR', 'R_LOPEZ', NULL, NULL, 'Partido Político'),
+(44, 49, 'Antonio Ortiz Villano', 'Guillermo Antenor Suárez Flores', '#fd0100', 'SALVEMOS AL PERU', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(45, 50, 'Arturo Fernández Bazán', 'César Arturo Fernández Bazán', '#d0161f', 'UN CAMINO DIFERENTE', 'DEFAULT_CANDIDATE', NULL, NULL, 'Partido Político'),
+(46, 51, 'Roberto Chiabra', 'Roberto Chiabra', '#ff2e34', 'UNIDAD NACIONAL', 'DEFAULT_CANDIDATE', NULL, NULL, 'Alianza Electoral');
 
 -- --------------------------------------------------------
 
@@ -574,7 +652,9 @@ INSERT INTO `usuario` (`id`, `email`, `password_hash`, `rol`, `fecha_registro`, 
 (26, 'soto@email.com', '123456789012AAbb++!!', 'user', '2026-01-16 00:25:58', 'Renzo Sotoo'),
 (27, 'jorge@email.com', '123456789012AAaa**!!', 'user', '2026-01-16 00:28:32', 'Miguel Hilario'),
 (28, 'hilario@email.com', 'abAB123++!!qwe', 'user', '2026-01-16 01:01:50', 'Miguel Hilario'),
-(29, 'jacobo@zegel.com', 'aBBa12++!!12', 'user', '2026-01-16 02:47:07', 'Jacobo');
+(29, 'jacobo@zegel.com', 'aBBa12++!!12', 'user', '2026-01-16 02:47:07', 'Jacobo'),
+(30, 'pepepecas@email.com', '$argon2id$v=19$m=65536,t=2,p=1$cn8qXblaAFaqfd+h0EsKHE80qGKLlNveI1GzHWUCz4g$Dx/cKn+3+wzDb12qerw+FOp4/uXQieLKp3WYts877PU', 'user', '2026-01-22 22:06:36', 'Pepe Pecas'),
+(31, 'admin@tubrujula.pe', '$argon2id$v=19$m=65536,t=2,p=1$7yag2hvze7/fXBEdnNAE07rJMp+cHWFbC0ZtTdVHpB8$792ls4jug00Am/0Z8dv1LX0vIU5QVF1rG5cyQlIG4Xc', 'admin', '2026-01-22 22:10:37', 'Miguel Hilario');
 
 -- --------------------------------------------------------
 
@@ -597,6 +677,76 @@ CREATE TABLE `usuariorespuesta` (
 --   `pregunta_id`
 --       `pregunta` -> `id`
 --
+
+--
+-- Volcado de datos para la tabla `usuariorespuesta`
+--
+
+INSERT INTO `usuariorespuesta` (`sesion_id`, `pregunta_id`, `valor`, `fecha_respuesta`) VALUES
+(1, 22, 1, '2026-01-21 18:52:49'),
+(1, 23, -1, '2026-01-21 18:52:49'),
+(1, 26, 2, '2026-01-21 18:52:49'),
+(1, 27, 0, '2026-01-21 18:52:49'),
+(22, 22, 2, '2026-01-21 20:09:37'),
+(22, 23, 2, '2026-01-21 20:09:37'),
+(22, 26, 2, '2026-01-21 20:09:37'),
+(22, 27, 2, '2026-01-21 20:09:37'),
+(22, 30, 2, '2026-01-21 20:09:37'),
+(22, 31, 2, '2026-01-21 20:09:37'),
+(22, 32, 2, '2026-01-21 20:09:37'),
+(22, 33, 2, '2026-01-21 20:09:37'),
+(22, 36, 2, '2026-01-21 20:09:37'),
+(22, 37, 2, '2026-01-21 20:09:37'),
+(22, 39, 2, '2026-01-21 20:09:37'),
+(22, 42, 2, '2026-01-21 20:09:37'),
+(22, 43, 1, '2026-01-21 20:09:37'),
+(22, 45, 2, '2026-01-21 20:09:37'),
+(22, 47, 1, '2026-01-21 20:09:37'),
+(22, 48, 2, '2026-01-21 20:09:37'),
+(22, 49, 2, '2026-01-21 20:09:37'),
+(22, 50, 2, '2026-01-21 20:09:37'),
+(22, 52, 2, '2026-01-21 20:09:37'),
+(22, 54, 2, '2026-01-21 20:09:37'),
+(22, 56, 2, '2026-01-21 20:09:37'),
+(22, 57, 2, '2026-01-21 20:09:37'),
+(22, 58, 2, '2026-01-21 20:09:37'),
+(22, 59, 2, '2026-01-21 20:09:37'),
+(22, 60, 2, '2026-01-21 20:09:37'),
+(22, 62, 2, '2026-01-21 20:09:37'),
+(22, 63, 2, '2026-01-21 20:09:37'),
+(22, 65, 2, '2026-01-21 20:09:37'),
+(22, 66, 2, '2026-01-21 20:09:37'),
+(22, 67, 2, '2026-01-21 20:09:37'),
+(22, 69, 2, '2026-01-21 20:09:37'),
+(22, 70, 2, '2026-01-21 20:09:37'),
+(22, 71, 2, '2026-01-21 20:09:37'),
+(22, 73, 2, '2026-01-21 20:09:37'),
+(22, 74, 2, '2026-01-21 20:09:37'),
+(22, 75, 2, '2026-01-21 20:09:37'),
+(22, 76, 2, '2026-01-21 20:09:37'),
+(22, 77, 2, '2026-01-21 20:09:37'),
+(22, 79, 2, '2026-01-21 20:09:37'),
+(22, 80, 2, '2026-01-21 20:09:37'),
+(22, 82, 2, '2026-01-21 20:09:37'),
+(22, 83, 2, '2026-01-21 20:09:37'),
+(22, 84, 2, '2026-01-21 20:09:37'),
+(22, 86, 2, '2026-01-21 20:09:37'),
+(22, 87, 2, '2026-01-21 20:09:37'),
+(22, 89, 1, '2026-01-21 20:09:37'),
+(22, 91, 2, '2026-01-21 20:09:37'),
+(22, 92, 2, '2026-01-21 20:09:37'),
+(22, 95, 2, '2026-01-21 20:09:37'),
+(22, 96, 2, '2026-01-21 20:09:37'),
+(22, 97, 2, '2026-01-21 20:09:37'),
+(22, 99, 2, '2026-01-21 20:09:37'),
+(22, 100, 2, '2026-01-21 20:09:37'),
+(22, 101, 2, '2026-01-21 20:09:37'),
+(22, 103, 2, '2026-01-21 20:09:37'),
+(22, 105, 2, '2026-01-21 20:09:37'),
+(22, 107, 2, '2026-01-21 20:09:37'),
+(22, 118, 2, '2026-01-21 20:09:37'),
+(22, 119, 2, '2026-01-21 20:09:37'),
+(22, 120, 2, '2026-01-21 20:09:37');
 
 --
 -- Disparadores `usuariorespuesta`
@@ -633,6 +783,63 @@ CREATE TABLE `usuariosesion` (
 --   `usuario_id`
 --       `usuario` -> `id`
 --
+
+--
+-- Volcado de datos para la tabla `usuariosesion`
+--
+
+INSERT INTO `usuariosesion` (`id`, `fecha`, `resultado_x`, `resultado_y`, `completado`, `usuario_id`) VALUES
+(1, '2026-01-21 18:52:49', NULL, NULL, 0, NULL),
+(2, '2026-01-21 19:01:10', NULL, NULL, 0, NULL),
+(3, '2026-01-21 19:13:38', NULL, NULL, 0, NULL),
+(4, '2026-01-21 19:14:37', NULL, NULL, 0, NULL),
+(5, '2026-01-21 19:14:40', NULL, NULL, 0, NULL),
+(6, '2026-01-21 19:14:41', NULL, NULL, 0, NULL),
+(7, '2026-01-21 19:14:42', NULL, NULL, 0, NULL),
+(8, '2026-01-21 19:36:39', NULL, NULL, 0, NULL),
+(9, '2026-01-21 19:37:39', NULL, NULL, 0, NULL),
+(10, '2026-01-21 19:49:05', NULL, NULL, 0, NULL),
+(11, '2026-01-21 19:57:19', NULL, NULL, 0, NULL),
+(12, '2026-01-21 20:01:55', NULL, NULL, 0, NULL),
+(13, '2026-01-21 20:02:24', NULL, NULL, 0, NULL),
+(14, '2026-01-21 20:02:36', NULL, NULL, 0, NULL),
+(15, '2026-01-21 20:02:56', NULL, NULL, 0, NULL),
+(16, '2026-01-21 20:03:22', NULL, NULL, 0, NULL),
+(17, '2026-01-21 20:03:44', NULL, NULL, 0, NULL),
+(18, '2026-01-21 20:05:20', NULL, NULL, 0, NULL),
+(19, '2026-01-21 20:05:30', NULL, NULL, 0, NULL),
+(20, '2026-01-21 20:07:24', NULL, NULL, 0, NULL),
+(21, '2026-01-21 20:07:25', NULL, NULL, 0, NULL),
+(22, '2026-01-21 20:08:05', -26.92, -61.90, 1, NULL),
+(23, '2026-01-21 23:55:00', NULL, NULL, 0, NULL),
+(24, '2026-01-22 00:13:18', NULL, NULL, 0, NULL),
+(25, '2026-01-22 00:13:52', NULL, NULL, 0, NULL),
+(26, '2026-01-22 00:15:02', NULL, NULL, 0, NULL),
+(27, '2026-01-22 00:17:26', NULL, NULL, 0, NULL),
+(28, '2026-01-22 00:17:54', NULL, NULL, 0, NULL),
+(29, '2026-01-22 00:18:04', NULL, NULL, 0, NULL),
+(30, '2026-01-22 00:20:17', NULL, NULL, 0, NULL),
+(31, '2026-01-22 00:22:00', NULL, NULL, 0, NULL),
+(32, '2026-01-22 00:22:11', NULL, NULL, 0, NULL),
+(33, '2026-01-22 00:23:34', NULL, NULL, 0, NULL),
+(34, '2026-01-22 00:24:29', NULL, NULL, 0, NULL),
+(35, '2026-01-22 01:16:40', NULL, NULL, 0, NULL),
+(36, '2026-01-22 01:23:16', NULL, NULL, 0, NULL),
+(37, '2026-01-22 01:32:37', NULL, NULL, 0, NULL),
+(38, '2026-01-22 01:36:57', NULL, NULL, 0, NULL),
+(39, '2026-01-22 01:38:47', NULL, NULL, 0, NULL),
+(40, '2026-01-22 01:38:50', NULL, NULL, 0, NULL),
+(41, '2026-01-22 01:38:51', NULL, NULL, 0, NULL),
+(42, '2026-01-22 01:39:45', NULL, NULL, 0, NULL),
+(43, '2026-01-22 01:40:23', NULL, NULL, 0, NULL),
+(44, '2026-01-22 02:21:41', NULL, NULL, 0, NULL),
+(45, '2026-01-22 21:34:05', NULL, NULL, 0, NULL),
+(46, '2026-01-22 21:35:25', NULL, NULL, 0, NULL),
+(47, '2026-01-22 21:35:35', NULL, NULL, 0, NULL),
+(48, '2026-01-22 21:39:31', NULL, NULL, 0, NULL),
+(49, '2026-01-24 00:02:55', NULL, NULL, 0, NULL),
+(50, '2026-01-24 00:03:01', NULL, NULL, 0, NULL),
+(51, '2026-01-24 00:03:34', NULL, NULL, 0, NULL);
 
 -- --------------------------------------------------------
 
@@ -744,6 +951,13 @@ ALTER TABLE `partidorespuesta`
   ADD KEY `idx_pregunta` (`pregunta_id`);
 
 --
+-- Indices de la tabla `partido_metadata`
+--
+ALTER TABLE `partido_metadata`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_partido` (`partido_id`);
+
+--
 -- Indices de la tabla `pregunta`
 --
 ALTER TABLE `pregunta`
@@ -790,6 +1004,12 @@ ALTER TABLE `partido`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=52;
 
 --
+-- AUTO_INCREMENT de la tabla `partido_metadata`
+--
+ALTER TABLE `partido_metadata`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=121;
+
+--
 -- AUTO_INCREMENT de la tabla `pregunta`
 --
 ALTER TABLE `pregunta`
@@ -799,7 +1019,7 @@ ALTER TABLE `pregunta`
 -- AUTO_INCREMENT de la tabla `usuario`
 --
 ALTER TABLE `usuario`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT de la tabla `usuariosesion`
@@ -823,6 +1043,12 @@ ALTER TABLE `partidoposicioncache`
 ALTER TABLE `partidorespuesta`
   ADD CONSTRAINT `partidorespuesta_ibfk_1` FOREIGN KEY (`partido_id`) REFERENCES `partido` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `partidorespuesta_ibfk_2` FOREIGN KEY (`pregunta_id`) REFERENCES `pregunta` (`id`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `partido_metadata`
+--
+ALTER TABLE `partido_metadata`
+  ADD CONSTRAINT `partido_metadata_ibfk_1` FOREIGN KEY (`partido_id`) REFERENCES `partido` (`id`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `usuariorespuesta`
@@ -853,6 +1079,10 @@ USE `phpmyadmin`;
 
 --
 -- Metadatos para la tabla partidorespuesta
+--
+
+--
+-- Metadatos para la tabla partido_metadata
 --
 
 --
