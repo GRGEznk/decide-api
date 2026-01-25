@@ -87,3 +87,52 @@ export const getSession = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Error al obtener sesión' });
     }
 };
+
+export const getAllSessions = async (req: Request, res: Response) => {
+    try {
+        const { completado, fecha_inicio, fecha_fin, usuario_id } = req.query;
+        
+        let query = `
+            SELECT 
+                us.*, 
+                u.nombre as usuario_nombre,
+                u.email as usuario_email
+            FROM UsuarioSesion us
+            LEFT JOIN usuario u ON us.usuario_id = u.id
+            WHERE 1=1
+        `;
+        const params: any[] = [];
+
+        if (completado !== undefined && completado !== '') {
+            query += ' AND us.completado = ?';
+            params.push(completado === '1' ? 1 : 0);
+        }
+
+        if (fecha_inicio) {
+            query += ' AND us.fecha >= ?';
+            params.push(fecha_inicio);
+        }
+
+        if (fecha_fin) {
+            query += ' AND us.fecha <= ?';
+            params.push(`${fecha_fin} 23:59:59`);
+        }
+
+        if (usuario_id) {
+            if (usuario_id === 'null') {
+                query += ' AND us.usuario_id IS NULL';
+            } else {
+                query += ' AND us.usuario_id = ?';
+                params.push(usuario_id);
+            }
+        }
+
+        query += ' ORDER BY us.fecha DESC';
+
+        const [rows] = await pool.query<RowDataPacket[]>(query, params);
+        res.json(rows);
+    } catch (error) {
+        console.error('Error al obtener sesiones:', error);
+        res.status(500).json({ error: 'Error al obtener sesiones' });
+    }
+};
