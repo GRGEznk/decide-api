@@ -11,6 +11,7 @@ interface PartyResult extends RowDataPacket {
     logo_key: string;
     color_primario: string;
     candidato_presidencial: string;
+    candidato_key: string;
 }
 
 interface UserSession extends RowDataPacket {
@@ -22,12 +23,17 @@ interface UserSession extends RowDataPacket {
 export const getMatches = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
+        if (!id) return res.status(400).json({ error: 'ID no proporcionado' });
+        
+        // Ensure id is a string for regex and query
+        const idStr = String(id);
+        const isNumeric = /^\d+$/.test(idStr);
 
-        // 1. Obtener resultados del usuario
-        const [userRows] = await pool.query<UserSession[]>(
-            'SELECT resultado_x, resultado_y, completado FROM UsuarioSesion WHERE id = ?',
-            [id]
-        );
+        // 1. Obtener resultados del usuario (por ID o por Token)
+        let query = 'SELECT resultado_x, resultado_y, completado FROM UsuarioSesion WHERE ';
+        query += isNumeric ? 'id = ?' : 'token = ?';
+
+        const [userRows] = await pool.query<UserSession[]>(query, [idStr]);
 
         if (userRows.length === 0) {
             return res.status(404).json({ error: 'Sesión no encontrada' });
@@ -49,7 +55,8 @@ export const getMatches = async (req: Request, res: Response) => {
                 c.posicion_y,
                 pm.logo_key,
                 pm.color_primario,
-                pm.candidato_presidencial
+                pm.candidato_presidencial,
+                pm.candidato_key
             FROM Partido p 
             JOIN PartidoPosicionCache c ON p.id = c.partido_id
             LEFT JOIN partido_metadata pm ON p.id = pm.partido_id

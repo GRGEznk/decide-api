@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 25-01-2026 a las 19:50:43
+-- Tiempo de generación: 25-01-2026 a las 23:05:16
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -62,7 +62,10 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `CalcularPosicionUsuario` (IN `p_ses
     DECLARE total_x, total_y DECIMAL(10,2);
     DECLARE count_x, count_y INT;
     DECLARE pos_x, pos_y DECIMAL(5,2);
+    DECLARE v_token VARCHAR(12);
+    DECLARE v_exists INT;
     
+    -- Calcular sumas y conteos por eje
     SELECT 
         SUM(CASE WHEN p.eje = 'X' THEN ur.valor * p.direccion ELSE 0 END),
         SUM(CASE WHEN p.eje = 'Y' THEN ur.valor * p.direccion ELSE 0 END),
@@ -76,10 +79,20 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `CalcularPosicionUsuario` (IN `p_ses
     SET pos_x = (IFNULL(total_x, 0) / (GREATEST(1, IFNULL(count_x, 0)) * 2)) * 100;
     SET pos_y = (IFNULL(total_y, 0) / (GREATEST(1, IFNULL(count_y, 0)) * 2)) * 100;
     
+    -- Generar token único de 10 caracteres
+    token_loop: LOOP
+        SET v_token = SUBSTRING(MD5(RAND()), 1, 10);
+        SELECT COUNT(*) INTO v_exists FROM UsuarioSesion WHERE token = v_token;
+        IF v_exists = 0 THEN
+            LEAVE token_loop;
+        END IF;
+    END LOOP;
+    
     UPDATE UsuarioSesion 
     SET resultado_x = GREATEST(-100, LEAST(100, pos_x)), 
         resultado_y = GREATEST(-100, LEAST(100, pos_y)),
-        completado = TRUE
+        completado = TRUE,
+        token = v_token
     WHERE id = p_sesion_id;
 END$$
 
@@ -98,10 +111,6 @@ CREATE TABLE `partido` (
   `nombre_largo` varchar(100) NOT NULL,
   `sigla` varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- RELACIONES PARA LA TABLA `partido`:
---
 
 --
 -- Volcado de datos para la tabla `partido`
@@ -170,12 +179,6 @@ CREATE TABLE `partidoposicioncache` (
 ) ;
 
 --
--- RELACIONES PARA LA TABLA `partidoposicioncache`:
---   `partido_id`
---       `partido` -> `id`
---
-
---
 -- Volcado de datos para la tabla `partidoposicioncache`
 --
 
@@ -240,14 +243,6 @@ CREATE TABLE `partidorespuesta` (
   `valor` tinyint(4) NOT NULL COMMENT '-2, -1, 0, +1, +2',
   `fuente` varchar(500) DEFAULT NULL COMMENT 'URL o referencia de la posición'
 ) ;
-
---
--- RELACIONES PARA LA TABLA `partidorespuesta`:
---   `partido_id`
---       `partido` -> `id`
---   `pregunta_id`
---       `pregunta` -> `id`
---
 
 --
 -- Volcado de datos para la tabla `partidorespuesta`
@@ -415,12 +410,6 @@ CREATE TABLE `partido_metadata` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- RELACIONES PARA LA TABLA `partido_metadata`:
---   `partido_id`
---       `partido` -> `id`
---
-
---
 -- Volcado de datos para la tabla `partido_metadata`
 --
 
@@ -487,10 +476,6 @@ CREATE TABLE `pregunta` (
   `estado` enum('activa','inactiva') DEFAULT 'activa',
   `categoria` varchar(50) DEFAULT NULL COMMENT 'economia, derechos, ambiental, social'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- RELACIONES PARA LA TABLA `pregunta`:
---
 
 --
 -- Volcado de datos para la tabla `pregunta`
@@ -617,10 +602,6 @@ CREATE TABLE `usuario` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- RELACIONES PARA LA TABLA `usuario`:
---
-
---
 -- Volcado de datos para la tabla `usuario`
 --
 
@@ -654,7 +635,11 @@ INSERT INTO `usuario` (`id`, `email`, `password_hash`, `rol`, `fecha_registro`, 
 (28, 'hilario@email.com', 'abAB123++!!qwe', 'user', '2026-01-16 01:01:50', 'Miguel Hilario'),
 (29, 'jacobo@zegel.com', 'aBBa12++!!12', 'user', '2026-01-16 02:47:07', 'Jacobo'),
 (30, 'pepepecas@email.com', '$argon2id$v=19$m=65536,t=2,p=1$cn8qXblaAFaqfd+h0EsKHE80qGKLlNveI1GzHWUCz4g$Dx/cKn+3+wzDb12qerw+FOp4/uXQieLKp3WYts877PU', 'user', '2026-01-22 22:06:36', 'Pepe Pecas'),
-(31, 'admin@tubrujula.pe', '$argon2id$v=19$m=65536,t=2,p=1$7yag2hvze7/fXBEdnNAE07rJMp+cHWFbC0ZtTdVHpB8$792ls4jug00Am/0Z8dv1LX0vIU5QVF1rG5cyQlIG4Xc', 'admin', '2026-01-22 22:10:37', 'Miguel Hilario');
+(31, 'admin@tubrujula.pe', '$argon2id$v=19$m=65536,t=2,p=1$7yag2hvze7/fXBEdnNAE07rJMp+cHWFbC0ZtTdVHpB8$792ls4jug00Am/0Z8dv1LX0vIU5QVF1rG5cyQlIG4Xc', 'admin', '2026-01-22 22:10:37', 'Miguel Hilario'),
+(32, 'coyote@brujulae.com', '$argon2id$v=19$m=65536,t=2,p=1$4yvq28IRTPIbhWAMzuAbXkJmpphbnXfFRlL4f1UVhPk$vWZrdQZhUnyAuF1cjZlbFx1WPnVjsk+CaqoEL65Ay00', 'user', '2026-01-25 21:20:00', 'Peter Coyote'),
+(33, 'cosme.fulanito@email.com', '$argon2id$v=19$m=65536,t=2,p=1$X7lF+l/vHUZ+d7xhUNYBOFXfJIqSgum8fmWImgsHBdg$SOmYQ7Z1mncsQCdD7H2AyGRVNDUGQ7yrzR6pYF2CxEQ', 'user', '2026-01-25 21:24:01', 'Peter Coyote2'),
+(35, 'viejosabroso@email.com', '$argon2id$v=19$m=65536,t=2,p=1$v+niOt73lK09FcUyq4/ICzGr26isNOcewmB8bUgnPGE$5CUm16qaYYkHutu/yY1AdayCd9KJgv4Vtcsk/5KU61A', 'user', '2026-01-25 21:27:36', 'Peter Coyote3'),
+(36, 'asdqwe@email.com', '$argon2id$v=19$m=65536,t=2,p=1$JGtkL8Ztwnx13s7a02YVxB9/4qjOH7Ym4P/E7F8B1J8$w95jnRZlM1BSA2idaJygTwMaBJ1G9Max/2ygfyKjXo0', 'user', '2026-01-25 21:32:35', 'Peter Coyote4');
 
 -- --------------------------------------------------------
 
@@ -669,14 +654,6 @@ CREATE TABLE `usuariorespuesta` (
   `valor` tinyint(4) NOT NULL COMMENT '-2, -1, 0, +1, +2',
   `fecha_respuesta` timestamp NOT NULL DEFAULT current_timestamp()
 ) ;
-
---
--- RELACIONES PARA LA TABLA `usuariorespuesta`:
---   `sesion_id`
---       `usuariosesion` -> `id`
---   `pregunta_id`
---       `pregunta` -> `id`
---
 
 --
 -- Volcado de datos para la tabla `usuariorespuesta`
@@ -746,7 +723,187 @@ INSERT INTO `usuariorespuesta` (`sesion_id`, `pregunta_id`, `valor`, `fecha_resp
 (22, 107, 2, '2026-01-21 20:09:37'),
 (22, 118, 2, '2026-01-21 20:09:37'),
 (22, 119, 2, '2026-01-21 20:09:37'),
-(22, 120, 2, '2026-01-21 20:09:37');
+(22, 120, 2, '2026-01-21 20:09:37'),
+(52, 22, 2, '2026-01-25 20:15:16'),
+(52, 23, 2, '2026-01-25 20:15:16'),
+(52, 26, 1, '2026-01-25 20:15:16'),
+(52, 27, 1, '2026-01-25 20:15:16'),
+(52, 30, -1, '2026-01-25 20:15:16'),
+(52, 31, -1, '2026-01-25 20:15:16'),
+(52, 32, 1, '2026-01-25 20:15:16'),
+(52, 33, 2, '2026-01-25 20:15:16'),
+(52, 36, 2, '2026-01-25 20:15:16'),
+(52, 37, 2, '2026-01-25 20:15:16'),
+(52, 39, 2, '2026-01-25 20:15:16'),
+(52, 42, -1, '2026-01-25 20:15:16'),
+(52, 43, 2, '2026-01-25 20:15:16'),
+(52, 45, 2, '2026-01-25 20:15:16'),
+(52, 47, 2, '2026-01-25 20:15:16'),
+(52, 48, 1, '2026-01-25 20:15:16'),
+(52, 49, 1, '2026-01-25 20:15:16'),
+(52, 50, 2, '2026-01-25 20:15:16'),
+(52, 52, 2, '2026-01-25 20:15:16'),
+(52, 54, 2, '2026-01-25 20:15:16'),
+(52, 56, 2, '2026-01-25 20:15:16'),
+(52, 57, -2, '2026-01-25 20:15:16'),
+(52, 58, 2, '2026-01-25 20:15:16'),
+(52, 59, 2, '2026-01-25 20:15:16'),
+(52, 60, 2, '2026-01-25 20:15:16'),
+(52, 62, 2, '2026-01-25 20:15:16'),
+(52, 63, 1, '2026-01-25 20:15:16'),
+(52, 65, 2, '2026-01-25 20:15:16'),
+(52, 66, 2, '2026-01-25 20:15:16'),
+(52, 67, 2, '2026-01-25 20:15:16'),
+(52, 69, 2, '2026-01-25 20:15:16'),
+(52, 70, 1, '2026-01-25 20:15:16'),
+(52, 71, 1, '2026-01-25 20:15:16'),
+(52, 73, 2, '2026-01-25 20:15:16'),
+(52, 74, 2, '2026-01-25 20:15:16'),
+(52, 75, -1, '2026-01-25 20:15:16'),
+(52, 76, 2, '2026-01-25 20:15:16'),
+(52, 77, 1, '2026-01-25 20:15:16'),
+(52, 79, 2, '2026-01-25 20:15:16'),
+(52, 80, 1, '2026-01-25 20:15:16'),
+(52, 82, 1, '2026-01-25 20:15:16'),
+(52, 83, -1, '2026-01-25 20:15:16'),
+(52, 84, -1, '2026-01-25 20:15:16'),
+(52, 86, -1, '2026-01-25 20:15:16'),
+(52, 87, 1, '2026-01-25 20:15:16'),
+(52, 89, 2, '2026-01-25 20:15:16'),
+(52, 91, 2, '2026-01-25 20:15:16'),
+(52, 92, 1, '2026-01-25 20:15:16'),
+(52, 95, 1, '2026-01-25 20:15:16'),
+(52, 96, 2, '2026-01-25 20:15:16'),
+(52, 97, 1, '2026-01-25 20:15:16'),
+(52, 99, 2, '2026-01-25 20:15:16'),
+(52, 100, 2, '2026-01-25 20:15:16'),
+(52, 101, -1, '2026-01-25 20:15:16'),
+(52, 103, 2, '2026-01-25 20:15:16'),
+(52, 105, 2, '2026-01-25 20:15:16'),
+(52, 107, -2, '2026-01-25 20:15:16'),
+(52, 118, -2, '2026-01-25 20:15:16'),
+(52, 119, 2, '2026-01-25 20:15:16'),
+(52, 120, 1, '2026-01-25 20:15:16'),
+(53, 22, 1, '2026-01-25 20:39:13'),
+(53, 23, 1, '2026-01-25 20:39:13'),
+(53, 26, 1, '2026-01-25 20:39:13'),
+(53, 27, 1, '2026-01-25 20:39:13'),
+(53, 30, 0, '2026-01-25 20:39:13'),
+(53, 31, 2, '2026-01-25 20:39:13'),
+(53, 32, 1, '2026-01-25 20:39:13'),
+(53, 33, 1, '2026-01-25 20:39:13'),
+(53, 36, 2, '2026-01-25 20:39:13'),
+(53, 37, 1, '2026-01-25 20:39:13'),
+(53, 39, 2, '2026-01-25 20:39:13'),
+(53, 42, 2, '2026-01-25 20:39:13'),
+(53, 43, 2, '2026-01-25 20:39:13'),
+(53, 45, 2, '2026-01-25 20:39:13'),
+(53, 47, 2, '2026-01-25 20:39:13'),
+(53, 48, 2, '2026-01-25 20:39:13'),
+(53, 49, 2, '2026-01-25 20:39:13'),
+(53, 50, 1, '2026-01-25 20:39:13'),
+(53, 52, 2, '2026-01-25 20:39:13'),
+(53, 54, -1, '2026-01-25 20:39:13'),
+(53, 56, 1, '2026-01-25 20:39:13'),
+(53, 57, -2, '2026-01-25 20:39:13'),
+(53, 58, 1, '2026-01-25 20:39:13'),
+(53, 59, 1, '2026-01-25 20:39:13'),
+(53, 60, 1, '2026-01-25 20:39:13'),
+(53, 62, 2, '2026-01-25 20:39:13'),
+(53, 63, 2, '2026-01-25 20:39:13'),
+(53, 65, 1, '2026-01-25 20:39:13'),
+(53, 66, 2, '2026-01-25 20:39:13'),
+(53, 67, 1, '2026-01-25 20:39:13'),
+(53, 69, 1, '2026-01-25 20:39:13'),
+(53, 70, 2, '2026-01-25 20:39:13'),
+(53, 71, 2, '2026-01-25 20:39:13'),
+(53, 73, 1, '2026-01-25 20:39:13'),
+(53, 74, 2, '2026-01-25 20:39:13'),
+(53, 75, 1, '2026-01-25 20:39:13'),
+(53, 76, 1, '2026-01-25 20:39:13'),
+(53, 77, 2, '2026-01-25 20:39:13'),
+(53, 79, 2, '2026-01-25 20:39:13'),
+(53, 80, -1, '2026-01-25 20:39:13'),
+(53, 82, 2, '2026-01-25 20:39:13'),
+(53, 83, 1, '2026-01-25 20:39:13'),
+(53, 84, 2, '2026-01-25 20:39:13'),
+(53, 86, 2, '2026-01-25 20:39:13'),
+(53, 87, 2, '2026-01-25 20:39:13'),
+(53, 89, 1, '2026-01-25 20:39:13'),
+(53, 91, 2, '2026-01-25 20:39:13'),
+(53, 92, 2, '2026-01-25 20:39:13'),
+(53, 95, 2, '2026-01-25 20:39:13'),
+(53, 96, 2, '2026-01-25 20:39:13'),
+(53, 97, 1, '2026-01-25 20:39:13'),
+(53, 99, 1, '2026-01-25 20:39:13'),
+(53, 100, 1, '2026-01-25 20:39:13'),
+(53, 101, 2, '2026-01-25 20:39:13'),
+(53, 103, 1, '2026-01-25 20:39:13'),
+(53, 105, 1, '2026-01-25 20:39:13'),
+(53, 107, 1, '2026-01-25 20:39:13'),
+(53, 118, -2, '2026-01-25 20:39:13'),
+(53, 119, 2, '2026-01-25 20:39:13'),
+(53, 120, 2, '2026-01-25 20:39:13'),
+(54, 22, 2, '2026-01-25 21:34:47'),
+(54, 23, -1, '2026-01-25 21:34:47'),
+(54, 26, -1, '2026-01-25 21:34:47'),
+(54, 27, -1, '2026-01-25 21:34:47'),
+(54, 30, -1, '2026-01-25 21:34:47'),
+(54, 31, 2, '2026-01-25 21:34:47'),
+(54, 32, 1, '2026-01-25 21:34:47'),
+(54, 33, -1, '2026-01-25 21:34:47'),
+(54, 36, 1, '2026-01-25 21:34:47'),
+(54, 37, 2, '2026-01-25 21:34:47'),
+(54, 39, -1, '2026-01-25 21:34:47'),
+(54, 42, 2, '2026-01-25 21:34:47'),
+(54, 43, 2, '2026-01-25 21:34:47'),
+(54, 45, -1, '2026-01-25 21:34:47'),
+(54, 47, 1, '2026-01-25 21:34:47'),
+(54, 48, 1, '2026-01-25 21:34:47'),
+(54, 49, 1, '2026-01-25 21:34:47'),
+(54, 50, 2, '2026-01-25 21:34:47'),
+(54, 52, 2, '2026-01-25 21:34:47'),
+(54, 54, 0, '2026-01-25 21:34:47'),
+(54, 56, 2, '2026-01-25 21:34:47'),
+(54, 57, -2, '2026-01-25 21:34:47'),
+(54, 58, 0, '2026-01-25 21:34:47'),
+(54, 59, 1, '2026-01-25 21:34:47'),
+(54, 60, 2, '2026-01-25 21:34:47'),
+(54, 62, 2, '2026-01-25 21:34:47'),
+(54, 63, 1, '2026-01-25 21:34:47'),
+(54, 65, 1, '2026-01-25 21:34:47'),
+(54, 66, 1, '2026-01-25 21:34:47'),
+(54, 67, -2, '2026-01-25 21:34:47'),
+(54, 69, 2, '2026-01-25 21:34:47'),
+(54, 70, -1, '2026-01-25 21:34:47'),
+(54, 71, 2, '2026-01-25 21:34:47'),
+(54, 73, -2, '2026-01-25 21:34:47'),
+(54, 74, 1, '2026-01-25 21:34:47'),
+(54, 75, 2, '2026-01-25 21:34:47'),
+(54, 76, 2, '2026-01-25 21:34:47'),
+(54, 77, -2, '2026-01-25 21:34:47'),
+(54, 79, -1, '2026-01-25 21:34:47'),
+(54, 80, 0, '2026-01-25 21:34:47'),
+(54, 82, 2, '2026-01-25 21:34:47'),
+(54, 83, 1, '2026-01-25 21:34:47'),
+(54, 84, 2, '2026-01-25 21:34:47'),
+(54, 86, -2, '2026-01-25 21:34:47'),
+(54, 87, 0, '2026-01-25 21:34:47'),
+(54, 89, 1, '2026-01-25 21:34:47'),
+(54, 91, -1, '2026-01-25 21:34:47'),
+(54, 92, 1, '2026-01-25 21:34:47'),
+(54, 95, 1, '2026-01-25 21:34:47'),
+(54, 96, 2, '2026-01-25 21:34:47'),
+(54, 97, 1, '2026-01-25 21:34:47'),
+(54, 99, 0, '2026-01-25 21:34:47'),
+(54, 100, 1, '2026-01-25 21:34:47'),
+(54, 101, -1, '2026-01-25 21:34:47'),
+(54, 103, 2, '2026-01-25 21:34:47'),
+(54, 105, -1, '2026-01-25 21:34:47'),
+(54, 107, 2, '2026-01-25 21:34:47'),
+(54, 118, -1, '2026-01-25 21:34:47'),
+(54, 119, 1, '2026-01-25 21:34:47'),
+(54, 120, 2, '2026-01-25 21:34:47');
 
 --
 -- Disparadores `usuariorespuesta`
@@ -775,71 +932,69 @@ CREATE TABLE `usuariosesion` (
   `resultado_x` decimal(5,2) DEFAULT NULL COMMENT '-100.00 a +100.00',
   `resultado_y` decimal(5,2) DEFAULT NULL COMMENT '-100.00 a +100.00',
   `completado` tinyint(1) DEFAULT 0,
+  `token` varchar(12) DEFAULT NULL,
   `usuario_id` int(11) DEFAULT NULL COMMENT 'NULL si es anónimo'
 ) ;
-
---
--- RELACIONES PARA LA TABLA `usuariosesion`:
---   `usuario_id`
---       `usuario` -> `id`
---
 
 --
 -- Volcado de datos para la tabla `usuariosesion`
 --
 
-INSERT INTO `usuariosesion` (`id`, `fecha`, `resultado_x`, `resultado_y`, `completado`, `usuario_id`) VALUES
-(1, '2026-01-21 18:52:49', NULL, NULL, 0, NULL),
-(2, '2026-01-21 19:01:10', NULL, NULL, 0, NULL),
-(3, '2026-01-21 19:13:38', NULL, NULL, 0, NULL),
-(4, '2026-01-21 19:14:37', NULL, NULL, 0, NULL),
-(5, '2026-01-21 19:14:40', NULL, NULL, 0, NULL),
-(6, '2026-01-21 19:14:41', NULL, NULL, 0, NULL),
-(7, '2026-01-21 19:14:42', NULL, NULL, 0, NULL),
-(8, '2026-01-21 19:36:39', NULL, NULL, 0, NULL),
-(9, '2026-01-21 19:37:39', NULL, NULL, 0, NULL),
-(10, '2026-01-21 19:49:05', NULL, NULL, 0, NULL),
-(11, '2026-01-21 19:57:19', NULL, NULL, 0, NULL),
-(12, '2026-01-21 20:01:55', NULL, NULL, 0, NULL),
-(13, '2026-01-21 20:02:24', NULL, NULL, 0, NULL),
-(14, '2026-01-21 20:02:36', NULL, NULL, 0, NULL),
-(15, '2026-01-21 20:02:56', NULL, NULL, 0, NULL),
-(16, '2026-01-21 20:03:22', NULL, NULL, 0, NULL),
-(17, '2026-01-21 20:03:44', NULL, NULL, 0, NULL),
-(18, '2026-01-21 20:05:20', NULL, NULL, 0, NULL),
-(19, '2026-01-21 20:05:30', NULL, NULL, 0, NULL),
-(20, '2026-01-21 20:07:24', NULL, NULL, 0, NULL),
-(21, '2026-01-21 20:07:25', NULL, NULL, 0, NULL),
-(22, '2026-01-21 20:08:05', -26.92, -61.90, 1, NULL),
-(23, '2026-01-21 23:55:00', NULL, NULL, 0, NULL),
-(24, '2026-01-22 00:13:18', NULL, NULL, 0, NULL),
-(25, '2026-01-22 00:13:52', NULL, NULL, 0, NULL),
-(26, '2026-01-22 00:15:02', NULL, NULL, 0, NULL),
-(27, '2026-01-22 00:17:26', NULL, NULL, 0, NULL),
-(28, '2026-01-22 00:17:54', NULL, NULL, 0, NULL),
-(29, '2026-01-22 00:18:04', NULL, NULL, 0, NULL),
-(30, '2026-01-22 00:20:17', NULL, NULL, 0, NULL),
-(31, '2026-01-22 00:22:00', NULL, NULL, 0, NULL),
-(32, '2026-01-22 00:22:11', NULL, NULL, 0, NULL),
-(33, '2026-01-22 00:23:34', NULL, NULL, 0, NULL),
-(34, '2026-01-22 00:24:29', NULL, NULL, 0, NULL),
-(35, '2026-01-22 01:16:40', NULL, NULL, 0, NULL),
-(36, '2026-01-22 01:23:16', NULL, NULL, 0, NULL),
-(37, '2026-01-22 01:32:37', NULL, NULL, 0, NULL),
-(38, '2026-01-22 01:36:57', NULL, NULL, 0, NULL),
-(39, '2026-01-22 01:38:47', NULL, NULL, 0, NULL),
-(40, '2026-01-22 01:38:50', NULL, NULL, 0, NULL),
-(41, '2026-01-22 01:38:51', NULL, NULL, 0, NULL),
-(42, '2026-01-22 01:39:45', NULL, NULL, 0, NULL),
-(43, '2026-01-22 01:40:23', NULL, NULL, 0, NULL),
-(44, '2026-01-22 02:21:41', NULL, NULL, 0, NULL),
-(45, '2026-01-22 21:34:05', NULL, NULL, 0, NULL),
-(46, '2026-01-22 21:35:25', NULL, NULL, 0, NULL),
-(47, '2026-01-22 21:35:35', NULL, NULL, 0, NULL),
-(48, '2026-01-22 21:39:31', NULL, NULL, 0, NULL),
-(49, '2026-01-24 00:02:55', NULL, NULL, 0, NULL),
-(50, '2026-01-24 00:03:01', NULL, NULL, 0, NULL),
-(51, '2026-01-24 00:03:34', NULL, NULL, 0, NULL);
+INSERT INTO `usuariosesion` (`id`, `fecha`, `resultado_x`, `resultado_y`, `completado`, `token`, `usuario_id`) VALUES
+(1, '2026-01-21 18:52:49', NULL, NULL, 0, NULL, NULL),
+(2, '2026-01-21 19:01:10', NULL, NULL, 0, NULL, NULL),
+(3, '2026-01-21 19:13:38', NULL, NULL, 0, NULL, NULL),
+(4, '2026-01-21 19:14:37', NULL, NULL, 0, NULL, NULL),
+(5, '2026-01-21 19:14:40', NULL, NULL, 0, NULL, NULL),
+(6, '2026-01-21 19:14:41', NULL, NULL, 0, NULL, NULL),
+(7, '2026-01-21 19:14:42', NULL, NULL, 0, NULL, NULL),
+(8, '2026-01-21 19:36:39', NULL, NULL, 0, NULL, NULL),
+(9, '2026-01-21 19:37:39', NULL, NULL, 0, NULL, NULL),
+(10, '2026-01-21 19:49:05', NULL, NULL, 0, NULL, NULL),
+(11, '2026-01-21 19:57:19', NULL, NULL, 0, NULL, NULL),
+(12, '2026-01-21 20:01:55', NULL, NULL, 0, NULL, NULL),
+(13, '2026-01-21 20:02:24', NULL, NULL, 0, NULL, NULL),
+(14, '2026-01-21 20:02:36', NULL, NULL, 0, NULL, NULL),
+(15, '2026-01-21 20:02:56', NULL, NULL, 0, NULL, NULL),
+(16, '2026-01-21 20:03:22', NULL, NULL, 0, NULL, NULL),
+(17, '2026-01-21 20:03:44', NULL, NULL, 0, NULL, NULL),
+(18, '2026-01-21 20:05:20', NULL, NULL, 0, NULL, NULL),
+(19, '2026-01-21 20:05:30', NULL, NULL, 0, NULL, NULL),
+(20, '2026-01-21 20:07:24', NULL, NULL, 0, NULL, NULL),
+(21, '2026-01-21 20:07:25', NULL, NULL, 0, NULL, NULL),
+(22, '2026-01-21 20:08:05', -26.92, -61.90, 1, NULL, NULL),
+(23, '2026-01-21 23:55:00', NULL, NULL, 0, NULL, NULL),
+(24, '2026-01-22 00:13:18', NULL, NULL, 0, NULL, NULL),
+(25, '2026-01-22 00:13:52', NULL, NULL, 0, NULL, NULL),
+(26, '2026-01-22 00:15:02', NULL, NULL, 0, NULL, NULL),
+(27, '2026-01-22 00:17:26', NULL, NULL, 0, NULL, NULL),
+(28, '2026-01-22 00:17:54', NULL, NULL, 0, NULL, NULL),
+(29, '2026-01-22 00:18:04', NULL, NULL, 0, NULL, NULL),
+(30, '2026-01-22 00:20:17', NULL, NULL, 0, NULL, NULL),
+(31, '2026-01-22 00:22:00', NULL, NULL, 0, NULL, NULL),
+(32, '2026-01-22 00:22:11', NULL, NULL, 0, NULL, NULL),
+(33, '2026-01-22 00:23:34', NULL, NULL, 0, NULL, NULL),
+(34, '2026-01-22 00:24:29', NULL, NULL, 0, NULL, NULL),
+(35, '2026-01-22 01:16:40', NULL, NULL, 0, NULL, NULL),
+(36, '2026-01-22 01:23:16', NULL, NULL, 0, NULL, NULL),
+(37, '2026-01-22 01:32:37', NULL, NULL, 0, NULL, NULL),
+(38, '2026-01-22 01:36:57', NULL, NULL, 0, NULL, NULL),
+(39, '2026-01-22 01:38:47', NULL, NULL, 0, NULL, NULL),
+(40, '2026-01-22 01:38:50', NULL, NULL, 0, NULL, NULL),
+(41, '2026-01-22 01:38:51', NULL, NULL, 0, NULL, NULL),
+(42, '2026-01-22 01:39:45', NULL, NULL, 0, NULL, NULL),
+(43, '2026-01-22 01:40:23', NULL, NULL, 0, NULL, NULL),
+(44, '2026-01-22 02:21:41', NULL, NULL, 0, NULL, NULL),
+(45, '2026-01-22 21:34:05', NULL, NULL, 0, NULL, NULL),
+(46, '2026-01-22 21:35:25', NULL, NULL, 0, NULL, NULL),
+(47, '2026-01-22 21:35:35', NULL, NULL, 0, NULL, NULL),
+(48, '2026-01-22 21:39:31', NULL, NULL, 0, NULL, NULL),
+(49, '2026-01-24 00:02:55', NULL, NULL, 0, NULL, NULL),
+(50, '2026-01-24 00:03:01', NULL, NULL, 0, NULL, NULL),
+(51, '2026-01-24 00:03:34', NULL, NULL, 0, NULL, NULL),
+(52, '2026-01-25 20:11:33', -12.82, -38.10, 1, NULL, NULL),
+(53, '2026-01-25 20:37:51', -23.68, -47.62, 1, '3fac4d1496', NULL),
+(54, '2026-01-25 21:33:03', -10.29, -7.14, 1, '63d9559e49', NULL);
 
 -- --------------------------------------------------------
 
@@ -989,6 +1144,7 @@ ALTER TABLE `usuariorespuesta`
 --
 ALTER TABLE `usuariosesion`
   ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `token` (`token`),
   ADD KEY `idx_usuario` (`usuario_id`),
   ADD KEY `idx_fecha` (`fecha`),
   ADD KEY `idx_completado` (`completado`);
@@ -1007,7 +1163,7 @@ ALTER TABLE `partido`
 -- AUTO_INCREMENT de la tabla `partido_metadata`
 --
 ALTER TABLE `partido_metadata`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=121;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=122;
 
 --
 -- AUTO_INCREMENT de la tabla `pregunta`
@@ -1019,7 +1175,7 @@ ALTER TABLE `pregunta`
 -- AUTO_INCREMENT de la tabla `usuario`
 --
 ALTER TABLE `usuario`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
 
 --
 -- AUTO_INCREMENT de la tabla `usuariosesion`
@@ -1062,60 +1218,6 @@ ALTER TABLE `usuariorespuesta`
 --
 ALTER TABLE `usuariosesion`
   ADD CONSTRAINT `usuariosesion_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`) ON DELETE SET NULL;
-
-
---
--- Metadatos
---
-USE `phpmyadmin`;
-
---
--- Metadatos para la tabla partido
---
-
---
--- Metadatos para la tabla partidoposicioncache
---
-
---
--- Metadatos para la tabla partidorespuesta
---
-
---
--- Metadatos para la tabla partido_metadata
---
-
---
--- Metadatos para la tabla pregunta
---
-
---
--- Metadatos para la tabla usuario
---
-
---
--- Metadatos para la tabla usuariorespuesta
---
-
---
--- Metadatos para la tabla usuariosesion
---
-
---
--- Metadatos para la tabla vistaestadisticasquiz
---
-
---
--- Metadatos para la tabla vistapreguntasestadisticas
---
-
---
--- Metadatos para la tabla vistausuariosactividad
---
-
---
--- Metadatos para la base de datos decide_pe
---
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
