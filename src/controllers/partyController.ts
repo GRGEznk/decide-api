@@ -53,30 +53,30 @@ export const getPartyPositions = async (req: Request, res: Response) => {
 export const createParty = async (req: Request, res: Response) => {
     const connection = await pool.getConnection();
     try {
-        const { 
-            nombre, nombre_largo, sigla, // Campos tabla Partido
-            candidato_presidencial, lider_partido, color_primario, logo_key, candidato_key, anio_fundacion, anio_inscripcion_jne, tipo_organizacion // Campos Metadata
+        const {
+            nombre, nombre_largo, sigla, // tabla Partido
+            candidato_presidencial, lider_partido, color_primario, logo_key, candidato_key, anio_fundacion, anio_inscripcion_jne, tipo_organizacion // tabla Metadata
         } = req.body;
 
-        // Validaciones básicas
+        // validaciones básicas
         if (!nombre || !nombre_largo || !sigla || !logo_key) {
             return res.status(400).json({ error: 'Campos requeridos: nombre, nombre_largo, sigla, logo_key' });
         }
 
         await connection.beginTransaction();
 
-        // 1. Insertar Partido base
+        // insertar partido base
         const queryPartido = 'INSERT INTO Partido (nombre, nombre_largo, sigla) VALUES (?, ?, ?)';
         const [resultPartido]: any = await connection.query(queryPartido, [nombre, nombre_largo, sigla]);
         const partidoId = resultPartido.insertId;
 
-        // 2. Insertar Metadatos
+        // insertar metadatos
         const queryMeta = `
             INSERT INTO partido_metadata 
             (partido_id, candidato_presidencial, lider_partido, color_primario, logo_key, candidato_key, anio_fundacion, anio_inscripcion_jne, tipo_organizacion)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        
+
         await connection.query(queryMeta, [
             partidoId,
             candidato_presidencial || null,
@@ -114,9 +114,9 @@ export const updateParty = async (req: Request, res: Response) => {
     const connection = await pool.getConnection();
     try {
         const { id } = req.params;
-        const { 
+        const {
             nombre, nombre_largo, sigla,
-            candidato_presidencial, lider_partido, color_primario, logo_key, candidato_key, anio_fundacion, anio_inscripcion_jne, tipo_organizacion 
+            candidato_presidencial, lider_partido, color_primario, logo_key, candidato_key, anio_fundacion, anio_inscripcion_jne, tipo_organizacion
         } = req.body;
 
         if (!nombre || !nombre_largo || !sigla || !logo_key) {
@@ -125,12 +125,11 @@ export const updateParty = async (req: Request, res: Response) => {
 
         await connection.beginTransaction();
 
-        // 1. Actualizar tabla base
+        // actualizar tabla base
         const queryPartido = 'UPDATE Partido SET nombre = ?, nombre_largo = ?, sigla = ? WHERE id = ?';
         await connection.query(queryPartido, [nombre, nombre_largo, sigla, id]);
 
-        // 2. Actualizar o Insertar (Upsert) Metadatos
-        // Usamos ON DUPLICATE KEY UPDATE por si acaso el metadata no existía (para partidos viejos)
+        // actualizar o insertar metadatos  
         const queryMeta = `
             INSERT INTO partido_metadata 
             (partido_id, candidato_presidencial, lider_partido, color_primario, logo_key, candidato_key, anio_fundacion, anio_inscripcion_jne, tipo_organizacion)
@@ -207,7 +206,7 @@ export const getPartyAnswers = async (req: Request, res: Response) => {
 export const savePartyAnswers = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { respuestas } = req.body; // Array of { pregunta_id, valor, fuente }
+        const { respuestas } = req.body; // array of { pregunta_id, valor, fuente }
 
         if (!Array.isArray(respuestas)) {
             return res.status(400).json({ error: 'El formato de respuestas es inválido' });

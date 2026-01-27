@@ -24,12 +24,11 @@ export const getMatches = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         if (!id) return res.status(400).json({ error: 'ID no proporcionado' });
-        
-        // Ensure id is a string for regex and query
+
         const idStr = String(id);
         const isNumeric = /^\d+$/.test(idStr);
 
-        // 1. Obtener resultados del usuario (por ID o por Token)
+        // obtener resultados del usuario (por ID o por Token)
         let query = 'SELECT resultado_x, resultado_y, completado FROM UsuarioSesion WHERE ';
         query += isNumeric ? 'id = ?' : 'token = ?';
 
@@ -45,7 +44,7 @@ export const getMatches = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'La sesión no ha sido completada o faltan resultados' });
         }
 
-        // 2. Obtener posiciones de los partidos
+        // obtener posiciones de los partidos
         const [partyRows] = await pool.query<PartyResult[]>(`
             SELECT 
                 p.id, 
@@ -62,28 +61,28 @@ export const getMatches = async (req: Request, res: Response) => {
             LEFT JOIN partido_metadata pm ON p.id = pm.partido_id
         `);
 
-        // 3. Calcular distancias y afinidad
-        const MAX_DISTANCE = Math.sqrt(Math.pow(200, 2) + Math.pow(200, 2)); // Distancia máxima posible en grilla 200x200 (-100 a 100)
+        // calcular distancias y afinidad
+        const MAX_DISTANCE = Math.sqrt(Math.pow(200, 2) + Math.pow(200, 2)); // distancia máxima posible en grilla 200x200 (-100 a 100)
 
         const matches = partyRows.map(party => {
-            // Distancia Euclidiana
+            // distancia euclidiana
             const distance = Math.sqrt(
                 Math.pow(party.posicion_x - user.resultado_x, 2) +
                 Math.pow(party.posicion_y - user.resultado_y, 2)
             );
 
-            // Convertir a porcentaje de afinidad (100% = misma posición, 0% = extremos opuestos)
-            // Se usa Math.max(0, ...) para evitar negativos por errores de redondeo float
+            // convertir a porcentaje de afinidad (100% = misma posición, 0% = extremos opuestos)
+            // se usa Math.max(0, ...) para evitar negativos por errores de redondeo float
             const matchPercentage = Math.max(0, 100 * (1 - (distance / MAX_DISTANCE)));
 
             return {
                 ...party,
-                match_percentage: Number(matchPercentage.toFixed(2)), // Redondear a 2 decimales
-                distance: distance // Opcional, para debug
+                match_percentage: Number(matchPercentage.toFixed(2)), // redondear a 2 decimales
+                distance: distance
             };
         });
 
-        // 4. Ordenar por mayor afinidad
+        // ordenar por mayor afinidad
         matches.sort((a, b) => b.match_percentage - a.match_percentage);
 
         res.json(matches);

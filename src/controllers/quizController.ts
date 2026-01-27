@@ -4,7 +4,7 @@ import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 export const startSession = async (req: Request, res: Response) => {
     try {
-        const { usuario_id } = req.body; // Optional, null if anonymous
+        const { usuario_id } = req.body; // null si es anónimo
 
         const [result] = await pool.query(
             'INSERT INTO UsuarioSesion (usuario_id) VALUES (?)',
@@ -38,7 +38,7 @@ export const saveAnswers = async (req: Request, res: Response) => {
             for (const ans of answers) {
                 const { pregunta_id, valor } = ans;
 
-                // Validate value range -2 to +2
+                // validar rango de valores -2 a +2
                 if (valor < -2 || valor > 2) {
                     throw new Error(`Valore inváildo para pregunta ${pregunta_id}: ${valor}`);
                 }
@@ -49,8 +49,8 @@ export const saveAnswers = async (req: Request, res: Response) => {
                 );
             }
 
-            // The trigger 'actualizar_posicion_usuario' will automatically calculate results
-            // if enough answers are provided.
+            // el trigger 'actualizar_posicion_usuario' calculará automáticamente los resultados
+            // si se proporcionan suficientes respuestas.
 
             await connection.commit();
             res.json({ message: 'Respuestas guardadas' });
@@ -91,7 +91,7 @@ export const getSession = async (req: Request, res: Response) => {
 export const getAllSessions = async (req: Request, res: Response) => {
     try {
         const { completado, fecha_inicio, fecha_fin, usuario_id } = req.query;
-        
+
         let query = `
             SELECT 
                 us.*, 
