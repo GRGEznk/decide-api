@@ -43,6 +43,50 @@ export const getStats = async (req: Request, res: Response) => {
             LIMIT 5
         `);
 
+        // 6. Top Parties (Calculated via distance)
+        const [partiesData] = await pool.query(`
+            SELECT p.id, p.nombre_largo, ppc.posicion_x, ppc.posicion_y 
+            FROM PartidoPosicionCache ppc
+            JOIN Partido p ON ppc.partido_id = p.id
+        `);
+
+        const [sessionsData] = await pool.query(`
+            SELECT resultado_x, resultado_y 
+            FROM UsuarioSesion 
+            WHERE completado = 1
+        `);
+
+        // Algorithm: Find nearest party for each session
+        const partyCounts: Record<string, number> = {};
+        const parties = partiesData as any[];
+        const sessions = sessionsData as any[];
+
+        sessions.forEach(session => {
+            let minDist = Infinity;
+            let closestParty = null;
+
+            parties.forEach(party => {
+                // Euclidean distance
+                const dist = Math.sqrt(
+                    Math.pow(session.resultado_x - party.posicion_x, 2) +
+                    Math.pow(session.resultado_y - party.posicion_y, 2)
+                );
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestParty = party.nombre_largo;
+                }
+            });
+
+            if (closestParty) {
+                partyCounts[closestParty] = (partyCounts[closestParty] || 0) + 1;
+            }
+        });
+
+        const topParties = Object.entries(partyCounts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+
         res.json({
             kpi: {
                 usuarios: (usuarios as any)[0].total,
@@ -56,7 +100,8 @@ export const getStats = async (req: Request, res: Response) => {
             charts: {
                 activity: activityData,
                 scatter: scatterData,
-                top_questions: topQuestions
+                top_questions: topQuestions,
+                top_parties: topParties
             }
         });
     } catch (error) {
