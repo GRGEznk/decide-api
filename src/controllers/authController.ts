@@ -7,7 +7,7 @@ const loginAttempts = new Map<string, { count: number; lockUntil: number }>();
 export const login = async (req: Request, res: Response): Promise<void> => {
   const { email, password } = req.body;
 
-  // verificar bloqueo de seguridad previo
+  // verificar bloqueo
   if (loginAttempts.has(email)) {
     const attempt = loginAttempts.get(email)!;
     if (attempt.lockUntil > Date.now()) {
@@ -24,7 +24,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   }
 
   try {
-    // buscar usuario en la base de datos
+    // buscar usuario
     const [rows] = await pool.query("SELECT * FROM Usuario WHERE email = ?", [
       email,
     ]);

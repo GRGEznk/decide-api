@@ -28,7 +28,7 @@ export const getMatches = async (req: Request, res: Response) => {
         const idStr = String(id);
         const isNumeric = /^\d+$/.test(idStr);
 
-        // obtener resultados del usuario (por ID o por Token)
+        // obtener resultados
         let query = 'SELECT resultado_x, resultado_y, completado FROM UsuarioSesion WHERE ';
         query += isNumeric ? 'id = ?' : 'token = ?';
 
@@ -44,7 +44,7 @@ export const getMatches = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'La sesión no ha sido completada o faltan resultados' });
         }
 
-        // obtener posiciones de los partidos
+        // obtener posiciones
         const [partyRows] = await pool.query<PartyResult[]>(`
             SELECT 
                 p.id, 
@@ -61,8 +61,8 @@ export const getMatches = async (req: Request, res: Response) => {
             LEFT JOIN partido_metadata pm ON p.id = pm.partido_id
         `);
 
-        // calcular distancias y afinidad
-        const MAX_DISTANCE = Math.sqrt(Math.pow(200, 2) + Math.pow(200, 2)); // distancia máxima posible en grilla 200x200 (-100 a 100)
+        // calcular afinidad
+        const MAX_DISTANCE = Math.sqrt(Math.pow(200, 2) + Math.pow(200, 2)); // distancia maxima
 
         const matches = partyRows.map(party => {
             // distancia euclidiana
@@ -71,18 +71,17 @@ export const getMatches = async (req: Request, res: Response) => {
                 Math.pow(party.posicion_y - user.resultado_y, 2)
             );
 
-            // convertir a porcentaje de afinidad (100% = misma posición, 0% = extremos opuestos)
-            // se usa Math.max(0, ...) para evitar negativos por errores de redondeo float
+            // porcentaje de afinidad
             const matchPercentage = Math.max(0, 100 * (1 - (distance / MAX_DISTANCE)));
 
             return {
                 ...party,
-                match_percentage: Number(matchPercentage.toFixed(2)), // redondear a 2 decimales
+                match_percentage: Number(matchPercentage.toFixed(2)), // redondear
                 distance: distance
             };
         });
 
-        // ordenar por mayor afinidad
+        // ordenar afinidad
         matches.sort((a, b) => b.match_percentage - a.match_percentage);
 
         res.json(matches);

@@ -3,12 +3,12 @@ import { pool } from '../config/db';
 
 export const getStats = async (req: Request, res: Response) => {
     try {
-        // 1. Basic Counters
+        // 1. contadores basicos
         const [usuarios] = await pool.query('SELECT COUNT(*) as total FROM Usuario');
         const [preguntas] = await pool.query('SELECT COUNT(*) as total FROM Pregunta WHERE estado = "activa"');
         const [partidos] = await pool.query('SELECT COUNT(*) as total FROM Partido');
 
-        // 2. Quiz Statistics (Conversion Rate & Totals)
+        // 2. estadisticas quiz
         const [quizStats] = await pool.query(`
             SELECT 
                 SUM(completadas) as total_completados, 
@@ -18,7 +18,7 @@ export const getStats = async (req: Request, res: Response) => {
             FROM vistaestadisticasquiz
         `);
 
-        // 3. Activity Chart Data (Last 30 days)
+        // 3. grafico actividad
         const [activityData] = await pool.query(`
             SELECT fecha, total_sesiones, completadas 
             FROM vistaestadisticasquiz 
@@ -26,7 +26,7 @@ export const getStats = async (req: Request, res: Response) => {
             LIMIT 30
         `);
 
-        // 4. Political Compass Scatter Data (Completed Sessions)
+        // 4. dispersion brujula
         const [scatterData] = await pool.query(`
             SELECT resultado_x as x, resultado_y as y 
             FROM UsuarioSesion 
@@ -35,7 +35,7 @@ export const getStats = async (req: Request, res: Response) => {
             LIMIT 500
         `);
 
-        // 5. Top Questions by Engagement
+        // 5. top preguntas
         const [topQuestions] = await pool.query(`
             SELECT texto, total_respuestas 
             FROM vistapreguntasestadisticas 
@@ -43,7 +43,7 @@ export const getStats = async (req: Request, res: Response) => {
             LIMIT 5
         `);
 
-        // 6. Top Parties (Calculated via distance)
+        // 6. top partidos
         const [partiesData] = await pool.query(`
             SELECT p.id, p.nombre_largo, ppc.posicion_x, ppc.posicion_y 
             FROM PartidoPosicionCache ppc
@@ -56,7 +56,7 @@ export const getStats = async (req: Request, res: Response) => {
             WHERE completado = 1
         `);
 
-        // Algorithm: Find nearest party for each session
+        // algoritmo cercania
         const partyCounts: Record<string, number> = {};
         const parties = partiesData as any[];
         const sessions = sessionsData as any[];
@@ -66,7 +66,7 @@ export const getStats = async (req: Request, res: Response) => {
             let closestParty = null;
 
             parties.forEach(party => {
-                // Euclidean distance
+                // distancia euclidiana
                 const dist = Math.sqrt(
                     Math.pow(session.resultado_x - party.posicion_x, 2) +
                     Math.pow(session.resultado_y - party.posicion_y, 2)

@@ -49,7 +49,7 @@ export const updateUser = async (req: Request, res: Response) => {
     const { nombre, email, password, rol } = req.body;
 
     try {
-        // Si hay password, validar y actualizar
+        // validar password
         if (password && password.trim() !== '') {
             const passValid = validatePassword(password);
             if (!passValid.isValid) {

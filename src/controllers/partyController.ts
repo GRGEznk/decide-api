@@ -58,14 +58,14 @@ export const createParty = async (req: Request, res: Response) => {
             candidato_presidencial, lider_partido, color_primario, logo_key, candidato_key, anio_fundacion, anio_inscripcion_jne, tipo_organizacion // tabla Metadata
         } = req.body;
 
-        // validaciones básicas
+        // validaciones
         if (!nombre || !nombre_largo || !sigla || !logo_key) {
             return res.status(400).json({ error: 'Campos requeridos: nombre, nombre_largo, sigla, logo_key' });
         }
 
         await connection.beginTransaction();
 
-        // insertar partido base
+        // insertar partido
         const queryPartido = 'INSERT INTO Partido (nombre, nombre_largo, sigla) VALUES (?, ?, ?)';
         const [resultPartido]: any = await connection.query(queryPartido, [nombre, nombre_largo, sigla]);
         const partidoId = resultPartido.insertId;
@@ -125,11 +125,11 @@ export const updateParty = async (req: Request, res: Response) => {
 
         await connection.beginTransaction();
 
-        // actualizar tabla base
+        // actualizar tabla
         const queryPartido = 'UPDATE Partido SET nombre = ?, nombre_largo = ?, sigla = ? WHERE id = ?';
         await connection.query(queryPartido, [nombre, nombre_largo, sigla, id]);
 
-        // actualizar o insertar metadatos  
+        // actualizar metadatos
         const queryMeta = `
             INSERT INTO partido_metadata 
             (partido_id, candidato_presidencial, lider_partido, color_primario, logo_key, candidato_key, anio_fundacion, anio_inscripcion_jne, tipo_organizacion)
@@ -206,7 +206,7 @@ export const getPartyAnswers = async (req: Request, res: Response) => {
 export const savePartyAnswers = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { respuestas } = req.body; // array of { pregunta_id, valor, fuente }
+        const { respuestas } = req.body; // array respuestas
 
         if (!Array.isArray(respuestas)) {
             return res.status(400).json({ error: 'El formato de respuestas es inválido' });
@@ -221,7 +221,7 @@ export const savePartyAnswers = async (req: Request, res: Response) => {
             for (const resp of respuestas) {
                 const { pregunta_id, valor, fuente } = resp;
 
-                // Validar rango -2 a +2
+                // validar rango
                 if (valor < -2 || valor > 2) {
                     throw new Error(`Valor inválido para pregunta ${pregunta_id}: ${valor}`);
                 }
