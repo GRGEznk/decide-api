@@ -16,9 +16,13 @@ export const startSession = async (req: Request, res: Response) => {
             session_id: insertId,
             message: 'Sesión iniciada correctamente'
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error al iniciar sesión de quiz:', error);
-        res.status(500).json({ error: 'Error al iniciar sesión' });
+        res.status(500).json({
+            error: 'Error al iniciar sesión',
+            details: error.message,
+            sqlMessage: error.sqlMessage
+        });
     }
 };
 
