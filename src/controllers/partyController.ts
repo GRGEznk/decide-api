@@ -26,6 +26,38 @@ export const getParties = async (req: Request, res: Response) => {
     }
 };
 
+export const getPartyBySigla = async (req: Request, res: Response) => {
+    try {
+        const { sigla } = req.params;
+        const query = `
+            SELECT 
+                p.*,
+                pm.candidato_presidencial,
+                pm.lider_partido,
+                pm.color_primario,
+                pm.logo_key,
+                pm.candidato_key,
+                pm.anio_fundacion,
+                pm.anio_inscripcion_jne,
+                pm.tipo_organizacion
+            FROM Partido p
+            LEFT JOIN partido_metadata pm ON p.id = pm.partido_id
+            WHERE p.sigla = ?
+        `;
+        const [rows]: any = await pool.query(query, [sigla]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Partido no encontrado' });
+        }
+
+        res.json(rows[0]);
+    } catch (error) {
+        console.error('Error detallado al obtener partido por sigla:', error);
+        console.error('Sigla recibida:', req.params.sigla);
+        res.status(500).json({ error: 'Error al obtener el partido', details: error instanceof Error ? error.message : String(error) });
+    }
+};
+
 export const getPartyPositions = async (req: Request, res: Response) => {
     try {
         const query = `

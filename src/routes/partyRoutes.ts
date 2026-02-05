@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import { getParties, getPartyPositions, createParty, updateParty, deleteParty, getPartyAnswers, savePartyAnswers } from '../controllers/partyController';
+import { getParties, getPartyPositions, createParty, updateParty, deleteParty, getPartyAnswers, savePartyAnswers, getPartyBySigla } from '../controllers/partyController';
 
 const router = Router();
 
 router.get('/partidos', getParties);
+router.get('/partidos/sigla/:sigla', getPartyBySigla);
 router.get('/posiciones-partidos', getPartyPositions);
 router.post('/partidos', createParty);
 router.put('/partidos/:id', updateParty);
