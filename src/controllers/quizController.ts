@@ -48,15 +48,16 @@ export const saveAnswers = async (req: Request, res: Response) => {
                 }
 
                 await connection.query(
-                    'INSERT INTO UsuarioRespuesta (sesion_id, pregunta_id, valor) VALUES (?, ?, ?)',
+                    'INSERT INTO UsuarioRespuesta (sesion_id, pregunta_id, valor) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE valor = VALUES(valor)',
                     [session_id, pregunta_id, valor]
                 );
             }
 
-            // trigger calcula resultados
+            // Forzar cálculo de resultados
+            await connection.query('CALL CalcularPosicionUsuario(?)', [session_id]);
 
             await connection.commit();
-            res.json({ message: 'Respuestas guardadas' });
+            res.json({ message: 'Respuestas guardadas y resultados calculados' });
 
         } catch (error: any) {
             await connection.rollback();
