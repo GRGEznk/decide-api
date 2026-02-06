@@ -4,11 +4,25 @@ import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 export const startSession = async (req: Request, res: Response) => {
     try {
-        const { usuario_id } = req.body; // null si anonimo
+        const { usuario_id } = req.body;
+        let validUserId = null;
+
+        // Validar si el usuario existe antes de insertar (evita error de FK)
+        if (usuario_id) {
+            const [user] = await pool.query<RowDataPacket[]>(
+                'SELECT id FROM usuario WHERE id = ?',
+                [usuario_id]
+            );
+            if (user.length > 0) {
+                validUserId = usuario_id;
+            } else {
+                console.warn(`Intento de inicio de sesión con usuario_id inexistente: ${usuario_id}. Se procede como anónimo.`);
+            }
+        }
 
         const [result] = await pool.query(
             'INSERT INTO UsuarioSesion (usuario_id) VALUES (?)',
-            [usuario_id || null]
+            [validUserId]
         );
         const insertId = (result as ResultSetHeader).insertId;
 
@@ -20,9 +34,44 @@ export const startSession = async (req: Request, res: Response) => {
         console.error('Error al iniciar sesión de quiz:', error);
         res.status(500).json({
             error: 'Error al iniciar sesión',
-            details: error.message,
-            sqlMessage: error.sqlMessage
+            details: error.message
         });
+    }
+};
+
+export const linkSessionWithUser = async (req: Request, res: Response) => {
+    try {
+        const { session_id, usuario_id } = req.body;
+
+        if (!session_id || !usuario_id) {
+            return res.status(400).json({ error: 'Faltan parámetros' });
+        }
+
+        // 1. Verificar si la sesión existe y es anónima
+        const [sessionRows] = await pool.query<RowDataPacket[]>(
+            'SELECT usuario_id FROM UsuarioSesion WHERE id = ?',
+            [session_id]
+        );
+
+        if (sessionRows.length === 0) {
+            return res.status(404).json({ error: 'Sesión no encontrada' });
+        }
+
+        if (sessionRows[0] && sessionRows[0].usuario_id !== null) {
+            return res.status(400).json({ error: 'La sesión ya está vinculada a un usuario' });
+        }
+
+        // 2. Vincular
+        await pool.query(
+            'UPDATE UsuarioSesion SET usuario_id = ? WHERE id = ?',
+            [usuario_id, session_id]
+        );
+
+        res.json({ message: 'Sesión vinculada correctamente' });
+
+    } catch (error: any) {
+        console.error('Error al vincular sesión:', error);
+        res.status(500).json({ error: 'Error al vincular sesión' });
     }
 };
 
@@ -44,7 +93,7 @@ export const saveAnswers = async (req: Request, res: Response) => {
 
                 // validar rango
                 if (valor < -2 || valor > 2) {
-                    throw new Error(`Valore inváildo para pregunta ${pregunta_id}: ${valor}`);
+                    throw new Error(`Valor inválido para pregunta ${pregunta_id}: ${valor}`);
                 }
 
                 await connection.query(
@@ -81,7 +130,7 @@ export const getSession = async (req: Request, res: Response) => {
             [id]
         );
 
-        if (rows.length === 0) {
+        if (rows.length === 0 || !rows[0]) {
             return res.status(404).json({ error: 'Sesión no encontrada' });
         }
 
