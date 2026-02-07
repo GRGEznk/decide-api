@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
     getAllCandidatos,
+    getAllRegiones,
     getCandidatoById,
     getCandidatosByPartidoId,
     createCandidato,
@@ -11,6 +12,7 @@ import {
 const router = Router();
 
 router.get('/candidatos', getAllCandidatos);
+router.get('/regiones', getAllRegiones);
 router.get('/candidatos/:id', getCandidatoById);
 router.get('/partidos/:id_partido/candidatos', getCandidatosByPartidoId);
 router.post('/candidatos', createCandidato);

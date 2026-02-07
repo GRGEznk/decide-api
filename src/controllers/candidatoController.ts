@@ -5,12 +5,24 @@ import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 // Obtener todos los candidatos (usando la vista)
 export const getAllCandidatos = async (req: Request, res: Response) => {
     try {
-        const query = 'SELECT * FROM vista_candidatos';
+        const query = 'SELECT * FROM vista_candidatos ORDER BY id_partido, cargo, numero';
         const [rows] = await pool.query(query);
         res.json(rows);
     } catch (error) {
         console.error('Error al obtener candidatos:', error);
         res.status(500).json({ error: 'Error al obtener candidatos' });
+    }
+};
+
+// Obtener todas las regiones
+export const getAllRegiones = async (req: Request, res: Response) => {
+    try {
+        const query = 'SELECT * FROM region ORDER BY nombre ASC';
+        const [rows] = await pool.query(query);
+        res.json(rows);
+    } catch (error) {
+        console.error('Error al obtener regiones:', error);
+        res.status(500).json({ error: 'Error al obtener regiones' });
     }
 };
 
@@ -48,22 +60,23 @@ export const getCandidatosByPartidoId = async (req: Request, res: Response) => {
 // Crear nuevo candidato
 export const createCandidato = async (req: Request, res: Response) => {
     try {
-        const { nombres, apellidos, cargo, region, foto, hojavida, id_partido } = req.body;
+        const { nombres, apellidos, cargo, numero, id_region, foto, hojavida, id_partido } = req.body;
 
         if (!nombres || !apellidos || !cargo || !id_partido) {
             return res.status(400).json({ error: 'Campos requeridos: nombres, apellidos, cargo, id_partido' });
         }
 
         const query = `
-            INSERT INTO candidato (nombres, apellidos, cargo, region, foto, hojavida, id_partido)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO candidato (nombres, apellidos, cargo, numero, id_region, foto, hojavida, id_partido)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         const [result] = await pool.query<ResultSetHeader>(query, [
             nombres,
             apellidos,
             cargo,
-            region || null,
+            numero || null,
+            id_region || 1, // Default a 'No Aplica'
             foto || null,
             hojavida || null,
             id_partido
@@ -86,7 +99,7 @@ export const createCandidato = async (req: Request, res: Response) => {
 export const updateCandidato = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { nombres, apellidos, cargo, region, foto, hojavida, id_partido } = req.body;
+        const { nombres, apellidos, cargo, numero, id_region, foto, hojavida, id_partido } = req.body;
 
         if (!nombres || !apellidos || !cargo || !id_partido) {
             return res.status(400).json({ error: 'Campos requeridos faltantes' });
@@ -94,7 +107,7 @@ export const updateCandidato = async (req: Request, res: Response) => {
 
         const query = `
             UPDATE candidato 
-            SET nombres = ?, apellidos = ?, cargo = ?, region = ?, foto = ?, hojavida = ?, id_partido = ?
+            SET nombres = ?, apellidos = ?, cargo = ?, numero = ?, id_region = ?, foto = ?, hojavida = ?, id_partido = ?
             WHERE id = ?
         `;
 
@@ -102,7 +115,8 @@ export const updateCandidato = async (req: Request, res: Response) => {
             nombres,
             apellidos,
             cargo,
-            region || null,
+            numero || null,
+            id_region || 1,
             foto || null,
             hojavida || null,
             id_partido,
