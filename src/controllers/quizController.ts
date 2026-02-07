@@ -47,11 +47,15 @@ export const linkSessionWithUser = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Faltan parámetros' });
         }
 
+        // Determinar si session_id es un ID numérico o un token
+        const idStr = String(session_id);
+        const isNumeric = /^\d+$/.test(idStr);
+
         // 1. Verificar si la sesión existe y es anónima
-        const [sessionRows] = await pool.query<RowDataPacket[]>(
-            'SELECT usuario_id FROM UsuarioSesion WHERE id = ?',
-            [session_id]
-        );
+        let query = 'SELECT usuario_id FROM UsuarioSesion WHERE ';
+        query += isNumeric ? 'id = ?' : 'token = ?';
+
+        const [sessionRows] = await pool.query<RowDataPacket[]>(query, [idStr]);
 
         if (sessionRows.length === 0) {
             return res.status(404).json({ error: 'Sesión no encontrada' });
@@ -61,11 +65,11 @@ export const linkSessionWithUser = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'La sesión ya está vinculada a un usuario' });
         }
 
-        // 2. Vincular
-        await pool.query(
-            'UPDATE UsuarioSesion SET usuario_id = ? WHERE id = ?',
-            [usuario_id, session_id]
-        );
+        // 2. Vincular (usamos la misma lógica de búsqueda para el UPDATE)
+        let updateQuery = 'UPDATE UsuarioSesion SET usuario_id = ? WHERE ';
+        updateQuery += isNumeric ? 'id = ?' : 'token = ?';
+        
+        await pool.query(updateQuery, [usuario_id, idStr]);
 
         res.json({ message: 'Sesión vinculada correctamente' });
 
@@ -125,10 +129,15 @@ export const getSession = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
 
-        const [rows] = await pool.query<RowDataPacket[]>(
-            'SELECT * FROM UsuarioSesion WHERE id = ?',
-            [id]
-        );
+        if (!id) return res.status(400).json({ error: 'ID no proporcionado' });
+
+        const idStr = String(id);
+        const isNumeric = /^\d+$/.test(idStr);
+
+        let query = 'SELECT * FROM UsuarioSesion WHERE ';
+        query += isNumeric ? 'id = ?' : 'token = ?';
+
+        const [rows] = await pool.query<RowDataPacket[]>(query, [idStr]);
 
         if (rows.length === 0 || !rows[0]) {
             return res.status(404).json({ error: 'Sesión no encontrada' });
