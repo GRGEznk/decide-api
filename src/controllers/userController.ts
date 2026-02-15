@@ -1,11 +1,11 @@
 import type { Request, Response } from 'express';
-import { pool } from '../config/db';
+import { pgPool } from '../config/supabase';
 import { validatePassword } from '../utils/validation';
 
 export const getUsers = async (req: Request, res: Response) => {
     try {
-        const [rows] = await pool.query('SELECT id, nombre, email, rol, fecha_registro FROM Usuario');
-        res.json(rows);
+        const result = await pgPool.query('SELECT id, nombre, email, rol, fecha_registro FROM usuario');
+        res.json(result.rows);
     } catch (error) {
         console.error('Error al obtener usuarios:', error);
         res.status(500).json({ error: 'Error al obtener usuarios' });
@@ -28,14 +28,14 @@ export const createUser = async (req: Request, res: Response) => {
 
     try {
         const hashedPassword = await Bun.password.hash(password);
-        const [result] = await pool.query(
-            'INSERT INTO Usuario (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)',
+        const result = await pgPool.query(
+            'INSERT INTO usuario (nombre, email, password_hash, rol) VALUES ($1, $2, $3, $4) RETURNING id',
             [nombre, email, hashedPassword, rol]
         );
-        const insertId = (result as any).insertId;
+        const insertId = result.rows[0].id;
         res.status(201).json({ id: insertId, nombre, email, rol });
     } catch (error: any) {
-        if (error.code === 'ER_DUP_ENTRY') {
+        if (error.code === '23505') {
             res.status(409).json({ error: 'El email ya está registrado' });
         } else {
             console.error('Error al crear usuario:', error);
@@ -58,13 +58,13 @@ export const updateUser = async (req: Request, res: Response) => {
             }
 
             const hashedPassword = await Bun.password.hash(password);
-            await pool.query(
-                'UPDATE Usuario SET nombre = ?, email = ?, password_hash = ?, rol = ? WHERE id = ?',
+            await pgPool.query(
+                'UPDATE usuario SET nombre = $1, email = $2, password_hash = $3, rol = $4 WHERE id = $5',
                 [nombre, email, hashedPassword, rol, id]
             );
         } else {
-            await pool.query(
-                'UPDATE Usuario SET nombre = ?, email = ?, rol = ? WHERE id = ?',
+            await pgPool.query(
+                'UPDATE usuario SET nombre = $1, email = $2, rol = $3 WHERE id = $4',
                 [nombre, email, rol, id]
             );
         }
@@ -78,7 +78,7 @@ export const updateUser = async (req: Request, res: Response) => {
 export const deleteUser = async (req: Request, res: Response) => {
     const { id } = req.params;
     try {
-        await pool.query('DELETE FROM Usuario WHERE id = ?', [id]);
+        await pgPool.query('DELETE FROM usuario WHERE id = $1', [id]);
         res.json({ message: 'Usuario eliminado' });
     } catch (error) {
         console.error('Error al eliminar usuario:', error);

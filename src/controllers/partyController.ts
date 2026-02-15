@@ -1,25 +1,26 @@
 import type { Request, Response } from 'express';
-import { pool } from '../config/db';
-import type { RowDataPacket } from 'mysql2';
+import { supabase, pgPool } from '../config/supabase';
 
 export const getParties = async (req: Request, res: Response) => {
     try {
-        const query = `
-            SELECT 
-                p.*,
-                pm.candidato_presidencial,
-                pm.lider_partido,
-                pm.color_primario,
-                pm.logo_key,
-                pm.candidato_key,
-                pm.anio_fundacion,
-                pm.anio_inscripcion_jne,
-                pm.tipo_organizacion
-            FROM Partido p
-            LEFT JOIN partido_metadata pm ON p.id = pm.partido_id
-        `;
-        const [rows] = await pool.query(query);
-        res.json(rows);
+        const { data, error } = await supabase
+            .from('partido')
+            .select(`
+                *,
+                partido_metadata (
+                    candidato_presidencial,
+                    lider_partido,
+                    color_primario,
+                    plan_gobierno,
+                    anio_fundacion,
+                    anio_inscripcion_jne,
+                    tipo_organizacion
+                )
+            `)
+            .order('nombre');
+
+        if (error) throw error;
+        res.json(data);
     } catch (error) {
         console.error('Error al obtener partidos:', error);
         res.status(500).json({ error: 'Error al obtener partidos' });
@@ -29,53 +30,60 @@ export const getParties = async (req: Request, res: Response) => {
 export const getPartyBySigla = async (req: Request, res: Response) => {
     try {
         const { sigla } = req.params;
-        const query = `
-            SELECT 
-                p.*,
-                pm.candidato_presidencial,
-                pm.lider_partido,
-                pm.color_primario,
-                pm.logo_key,
-                pm.candidato_key,
-                pm.anio_fundacion,
-                pm.anio_inscripcion_jne,
-                pm.tipo_organizacion
-            FROM Partido p
-            LEFT JOIN partido_metadata pm ON p.id = pm.partido_id
-            WHERE p.sigla = ?
-        `;
-        const [rows]: any = await pool.query(query, [sigla]);
+        
+        const { data, error } = await supabase
+            .from('partido')
+            .select(`
+                *,
+                partido_metadata (
+                    candidato_presidencial,
+                    lider_partido,
+                    color_primario,
+                    plan_gobierno,
+                    anio_fundacion,
+                    anio_inscripcion_jne,
+                    tipo_organizacion
+                )
+            `)
+            .eq('sigla', sigla)
+            .single();
 
-        if (rows.length === 0) {
+        if (error) {
+            console.error('Error al obtener partido por sigla:', error);
             return res.status(404).json({ error: 'Partido no encontrado' });
         }
 
-        res.json(rows[0]);
+        res.json(data);
     } catch (error) {
         console.error('Error detallado al obtener partido por sigla:', error);
         console.error('Sigla recibida:', req.params.sigla);
-        res.status(500).json({ error: 'Error al obtener el partido', details: error instanceof Error ? error.message : String(error) });
+        res.status(500).json({ 
+            error: 'Error al obtener el partido', 
+            details: error instanceof Error ? error.message : String(error) 
+        });
     }
 };
 
 export const getPartyPositions = async (req: Request, res: Response) => {
     try {
-        const query = `
-      SELECT 
-        p.id, 
-        p.nombre, 
-        p.sigla, 
-        c.posicion_x, 
-        c.posicion_y, 
-        c.fecha_calculo,
-        pm.logo_key,
-        pm.color_primario
-      FROM Partido p 
-      JOIN PartidoPosicionCache c ON p.id = c.partido_id
-      LEFT JOIN partido_metadata pm ON p.id = pm.partido_id
-    `;
-        const [rows] = await pool.query(query);
-        res.json(rows);
+        const { data, error } = await supabase
+            .from('partido')
+            .select(`
+                id,
+                nombre,
+                sigla,
+                partidoposicioncache (
+                    posicion_x,
+                    posicion_y,
+                    fecha_calculo
+                ),
+                partido_metadata (
+                    color_primario
+                )
+            `);
+
+        if (error) throw error;
+        res.json(data);
     } catch (error) {
         console.error('Error al obtener posiciones:', error);
         res.status(500).json({ error: 'Error al obtener posiciones' });
@@ -83,113 +91,110 @@ export const getPartyPositions = async (req: Request, res: Response) => {
 };
 
 export const createParty = async (req: Request, res: Response) => {
-    const connection = await pool.getConnection();
     try {
         const {
-            nombre, nombre_largo, sigla, // tabla Partido
-            candidato_presidencial, lider_partido, color_primario, logo_key, candidato_key, anio_fundacion, anio_inscripcion_jne, tipo_organizacion // tabla Metadata
+            nombre, nombre_largo, sigla,
+            candidato_presidencial, lider_partido, color_primario, plan_gobierno,
+            anio_fundacion, anio_inscripcion_jne, tipo_organizacion
         } = req.body;
 
-        // validaciones
-        if (!nombre || !nombre_largo || !sigla || !logo_key) {
-            return res.status(400).json({ error: 'Campos requeridos: nombre, nombre_largo, sigla, logo_key' });
+        // Validaciones
+        if (!nombre || !nombre_largo || !sigla) {
+            return res.status(400).json({ 
+                error: 'Campos requeridos: nombre, nombre_largo, sigla' 
+            });
         }
 
-        await connection.beginTransaction();
+        // Insertar partido
+        const { data: partido, error: errorPartido } = await supabase
+            .from('partido')
+            .insert({ nombre, nombre_largo, sigla })
+            .select()
+            .single();
 
-        // insertar partido
-        const queryPartido = 'INSERT INTO Partido (nombre, nombre_largo, sigla) VALUES (?, ?, ?)';
-        const [resultPartido]: any = await connection.query(queryPartido, [nombre, nombre_largo, sigla]);
-        const partidoId = resultPartido.insertId;
+        if (errorPartido) {
+            if (errorPartido.code === '23505') { // Unique violation
+                return res.status(409).json({ 
+                    error: 'Ya existe un partido con ese nombre o sigla' 
+                });
+            }
+            throw errorPartido;
+        }
 
-        // insertar metadatos
-        const queryMeta = `
-            INSERT INTO partido_metadata 
-            (partido_id, candidato_presidencial, lider_partido, color_primario, logo_key, candidato_key, anio_fundacion, anio_inscripcion_jne, tipo_organizacion)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
+        // Insertar metadatos
+        const { error: errorMeta } = await supabase
+            .from('partido_metadata')
+            .insert({
+                partido_id: partido.id,
+                candidato_presidencial: candidato_presidencial || null,
+                lider_partido: lider_partido || null,
+                color_primario: color_primario || '#000000',
+                plan_gobierno: plan_gobierno || null,
+                anio_fundacion: anio_fundacion || null,
+                anio_inscripcion_jne: anio_inscripcion_jne || null,
+                tipo_organizacion: tipo_organizacion || 'Partido Político'
+            });
 
-        await connection.query(queryMeta, [
-            partidoId,
-            candidato_presidencial || null,
-            lider_partido || null,
-            color_primario || '#000000',
-            logo_key,
-            candidato_key || 'DEFAULT_CANDIDATE',
-            anio_fundacion || null,
-            anio_inscripcion_jne || null,
-            tipo_organizacion || 'Partido Político'
-        ]);
-
-        await connection.commit();
+        if (errorMeta) throw errorMeta;
 
         res.status(201).json({
             message: 'Partido y metadatos creados exitosamente',
-            id: partidoId,
+            id: partido.id,
             nombre,
-            logo_key
+            sigla
         });
 
     } catch (error: any) {
-        await connection.rollback();
         console.error('Error al crear partido:', error);
-        if (error.code === 'ER_DUP_ENTRY') {
-            return res.status(409).json({ error: 'Ya existe un partido con ese nombre o identificador' });
-        }
         res.status(500).json({ error: 'Error al crear el partido' });
-    } finally {
-        connection.release();
     }
 };
 
 export const updateParty = async (req: Request, res: Response) => {
-    const connection = await pool.getConnection();
     try {
         const { id } = req.params;
         const {
             nombre, nombre_largo, sigla,
-            candidato_presidencial, lider_partido, color_primario, logo_key, candidato_key, anio_fundacion, anio_inscripcion_jne, tipo_organizacion
+            candidato_presidencial, lider_partido, color_primario, plan_gobierno,
+            anio_fundacion, anio_inscripcion_jne, tipo_organizacion
         } = req.body;
 
-        if (!nombre || !nombre_largo || !sigla || !logo_key) {
+        if (!nombre || !nombre_largo || !sigla) {
             return res.status(400).json({ error: 'Campos requeridos faltantes' });
         }
 
-        await connection.beginTransaction();
+        // Actualizar partido
+        const { error: errorPartido } = await supabase
+            .from('partido')
+            .update({ nombre, nombre_largo, sigla })
+            .eq('id', id);
 
-        // actualizar tabla
-        const queryPartido = 'UPDATE Partido SET nombre = ?, nombre_largo = ?, sigla = ? WHERE id = ?';
-        await connection.query(queryPartido, [nombre, nombre_largo, sigla, id]);
+        if (errorPartido) {
+            if (errorPartido.code === '23505') {
+                return res.status(409).json({ 
+                    error: 'Conflicto de duplicados en nombre o sigla' 
+                });
+            }
+            throw errorPartido;
+        }
 
-        // actualizar metadatos
-        const queryMeta = `
-            INSERT INTO partido_metadata 
-            (partido_id, candidato_presidencial, lider_partido, color_primario, logo_key, candidato_key, anio_fundacion, anio_inscripcion_jne, tipo_organizacion)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-            candidato_presidencial = VALUES(candidato_presidencial),
-            lider_partido = VALUES(lider_partido),
-            color_primario = VALUES(color_primario),
-            logo_key = VALUES(logo_key),
-            candidato_key = VALUES(candidato_key),
-            anio_fundacion = VALUES(anio_fundacion),
-            anio_inscripcion_jne = VALUES(anio_inscripcion_jne),
-            tipo_organizacion = VALUES(tipo_organizacion)
-        `;
+        // Actualizar o insertar metadatos (upsert)
+        const { error: errorMeta } = await supabase
+            .from('partido_metadata')
+            .upsert({
+                partido_id: parseInt(id as string),
+                candidato_presidencial: candidato_presidencial || null,
+                lider_partido: lider_partido || null,
+                color_primario: color_primario || '#000000',
+                plan_gobierno: plan_gobierno || null,
+                anio_fundacion: anio_fundacion || null,
+                anio_inscripcion_jne: anio_inscripcion_jne || null,
+                tipo_organizacion: tipo_organizacion || 'Partido Político'
+            }, {
+                onConflict: 'partido_id'
+            });
 
-        await connection.query(queryMeta, [
-            id,
-            candidato_presidencial || null,
-            lider_partido || null,
-            color_primario || '#000000',
-            logo_key,
-            candidato_key || 'DEFAULT_CANDIDATE',
-            anio_fundacion || null,
-            anio_inscripcion_jne || null,
-            tipo_organizacion || 'Partido Político'
-        ]);
-
-        await connection.commit();
+        if (errorMeta) throw errorMeta;
 
         res.json({
             message: 'Partido y metadatos actualizados exitosamente',
@@ -197,21 +202,22 @@ export const updateParty = async (req: Request, res: Response) => {
         });
 
     } catch (error: any) {
-        await connection.rollback();
         console.error('Error al actualizar partido:', error);
-        if (error.code === 'ER_DUP_ENTRY') {
-            return res.status(409).json({ error: 'Conflicto de duplicados en nombre o sigla' });
-        }
         res.status(500).json({ error: 'Error al actualizar el partido' });
-    } finally {
-        connection.release();
     }
 };
 
 export const deleteParty = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        await pool.query('DELETE FROM Partido WHERE id = ?', [id]);
+        
+        const { error } = await supabase
+            .from('partido')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        
         res.json({ message: 'Partido eliminado exitosamente' });
     } catch (error) {
         console.error('Error al eliminar partido:', error);
@@ -222,13 +228,14 @@ export const deleteParty = async (req: Request, res: Response) => {
 export const getPartyAnswers = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const query = `
-            SELECT pregunta_id, valor, fuente 
-            FROM PartidoRespuesta 
-            WHERE partido_id = ?
-        `;
-        const [rows] = await pool.query(query, [id]);
-        res.json(rows);
+        
+        const { data, error } = await supabase
+            .from('partidorespuesta')
+            .select('pregunta_id, valor, fuente')
+            .eq('partido_id', id);
+
+        if (error) throw error;
+        res.json(data);
     } catch (error) {
         console.error('Error al obtener respuestas del partido:', error);
         res.status(500).json({ error: 'Error al obtener respuestas' });
@@ -238,45 +245,47 @@ export const getPartyAnswers = async (req: Request, res: Response) => {
 export const savePartyAnswers = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { respuestas } = req.body; // array respuestas
+        const { respuestas } = req.body;
 
         if (!Array.isArray(respuestas)) {
             return res.status(400).json({ error: 'El formato de respuestas es inválido' });
         }
 
-        const connection = await pool.getConnection();
         const partyId = parseInt(id as string);
 
-        try {
-            await connection.beginTransaction();
-
-            for (const resp of respuestas) {
-                const { pregunta_id, valor, fuente } = resp;
-
-                // validar rango
-                if (valor < -2 || valor > 2) {
-                    throw new Error(`Valor inválido para pregunta ${pregunta_id}: ${valor}`);
-                }
-
-                await connection.query(`
-                    INSERT INTO PartidoRespuesta (partido_id, pregunta_id, valor, fuente)
-                    VALUES (?, ?, ?, ?)
-                    ON DUPLICATE KEY UPDATE valor = VALUES(valor), fuente = VALUES(fuente)
-                `, [partyId, pregunta_id, valor, fuente || null]);
+        // Validar valores
+        for (const resp of respuestas) {
+            const { valor, pregunta_id } = resp;
+            if (valor < -2 || valor > 2) {
+                return res.status(400).json({ 
+                    error: `Valor inválido para pregunta ${pregunta_id}: ${valor}` 
+                });
             }
-
-            await connection.commit();
-            res.json({ message: 'Respuestas guardadas exitosamente' });
-
-        } catch (error) {
-            await connection.rollback();
-            throw error;
-        } finally {
-            connection.release();
         }
+
+        // Preparar datos para upsert
+        const dataToInsert = respuestas.map(resp => ({
+            partido_id: partyId,
+            pregunta_id: resp.pregunta_id,
+            valor: resp.valor,
+            fuente: resp.fuente || null
+        }));
+
+        // Upsert todas las respuestas
+        const { error } = await supabase
+            .from('partidorespuesta')
+            .upsert(dataToInsert, {
+                onConflict: 'partido_id,pregunta_id'
+            });
+
+        if (error) throw error;
+
+        res.json({ message: 'Respuestas guardadas exitosamente' });
 
     } catch (error: any) {
         console.error('Error al guardar respuestas:', error);
-        res.status(500).json({ error: error.message || 'Error al guardar respuestas' });
+        res.status(500).json({ 
+            error: error.message || 'Error al guardar respuestas' 
+        });
     }
 };

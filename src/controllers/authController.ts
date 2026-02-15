@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { pool } from "../config/db";
+import { pgPool } from "../config/supabase";
 import { validatePassword } from "../utils/validation";
 
 const loginAttempts = new Map<string, { count: number; lockUntil: number }>();
@@ -25,10 +25,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
   try {
     // buscar usuario
-    const [rows] = await pool.query("SELECT * FROM Usuario WHERE email = ?", [
+    const result = await pgPool.query("SELECT * FROM usuario WHERE email = $1", [
       email,
     ]);
-    const users = rows as any[];
+    const users = result.rows;
 
     if (users.length === 0) {
       res.status(401).json({ error: "Usuario no encontrado" });
@@ -85,14 +85,14 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
   try {
     const hashedPassword = await Bun.password.hash(password);
-    const [result] = await pool.query(
-      "INSERT INTO Usuario (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)",
+    const result = await pgPool.query(
+      "INSERT INTO usuario (nombre, email, password_hash, rol) VALUES ($1, $2, $3, $4) RETURNING id",
       [nombre, email, hashedPassword, "user"],
     );
-    const insertId = (result as any).insertId;
+    const insertId = result.rows[0].id;
     res.status(201).json({ id: insertId, nombre, email, rol: "user" });
   } catch (error: any) {
-    if (error.code === "ER_DUP_ENTRY") {
+    if (error.code === "23505") {
       res.status(409).json({ error: "El email ya está registrado" });
     } else {
       console.error("Error al registrar usuario:", error);

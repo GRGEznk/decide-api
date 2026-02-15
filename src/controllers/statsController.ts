@@ -1,15 +1,15 @@
 import type { Request, Response } from 'express';
-import { pool } from '../config/db';
+import { pgPool } from '../config/supabase';
 
 export const getStats = async (req: Request, res: Response) => {
     try {
         // 1. contadores basicos
-        const [usuarios] = await pool.query('SELECT COUNT(*) as total FROM Usuario');
-        const [preguntas] = await pool.query('SELECT COUNT(*) as total FROM Pregunta WHERE estado = "activa"');
-        const [partidos] = await pool.query('SELECT COUNT(*) as total FROM Partido');
+        const usuariosRes = await pgPool.query('SELECT COUNT(*) as total FROM usuario');
+        const preguntasRes = await pgPool.query("SELECT COUNT(*) as total FROM pregunta WHERE estado = 'activa'");
+        const partidosRes = await pgPool.query('SELECT COUNT(*) as total FROM partido');
 
         // 2. estadisticas quiz
-        const [quizStats] = await pool.query(`
+        const quizStatsRes = await pgPool.query(`
             SELECT 
                 SUM(completadas) as total_completados, 
                 SUM(total_sesiones) as total_iniciados,
@@ -19,7 +19,7 @@ export const getStats = async (req: Request, res: Response) => {
         `);
 
         // 3. grafico actividad
-        const [activityData] = await pool.query(`
+        const activityDataRes = await pgPool.query(`
             SELECT fecha, total_sesiones, completadas 
             FROM vistaestadisticasquiz 
             ORDER BY fecha DESC 
@@ -27,16 +27,16 @@ export const getStats = async (req: Request, res: Response) => {
         `);
 
         // 4. dispersion brujula
-        const [scatterData] = await pool.query(`
+        const scatterDataRes = await pgPool.query(`
             SELECT resultado_x as x, resultado_y as y 
-            FROM UsuarioSesion 
+            FROM usuariosesion 
             WHERE completado = 1 
             ORDER BY fecha DESC 
             LIMIT 500
         `);
 
         // 5. top preguntas
-        const [topQuestions] = await pool.query(`
+        const topQuestionsRes = await pgPool.query(`
             SELECT texto, total_respuestas 
             FROM vistapreguntasestadisticas 
             ORDER BY total_respuestas DESC 
@@ -44,22 +44,22 @@ export const getStats = async (req: Request, res: Response) => {
         `);
 
         // 6. top partidos
-        const [partiesData] = await pool.query(`
+        const partiesDataRes = await pgPool.query(`
             SELECT p.id, p.nombre_largo, ppc.posicion_x, ppc.posicion_y 
-            FROM PartidoPosicionCache ppc
-            JOIN Partido p ON ppc.partido_id = p.id
+            FROM partidoposicioncache ppc
+            JOIN partido p ON ppc.partido_id = p.id
         `);
 
-        const [sessionsData] = await pool.query(`
+        const sessionsDataRes = await pgPool.query(`
             SELECT resultado_x, resultado_y 
-            FROM UsuarioSesion 
+            FROM usuariosesion 
             WHERE completado = 1
         `);
 
         // algoritmo cercania
         const partyCounts: Record<string, number> = {};
-        const parties = partiesData as any[];
-        const sessions = sessionsData as any[];
+        const parties = partiesDataRes.rows;
+        const sessions = sessionsDataRes.rows;
 
         sessions.forEach(session => {
             let minDist = Infinity;
@@ -89,18 +89,18 @@ export const getStats = async (req: Request, res: Response) => {
 
         res.json({
             kpi: {
-                usuarios: (usuarios as any)[0].total,
-                preguntas_activas: (preguntas as any)[0].total,
-                partidos: (partidos as any)[0].total,
-                tests_completados: (quizStats as any)[0].total_completados || 0,
-                tests_iniciados: (quizStats as any)[0].total_iniciados || 0,
-                promedio_eje_x: (quizStats as any)[0].prom_x || 0,
-                promedio_eje_y: (quizStats as any)[0].prom_y || 0
+                usuarios: usuariosRes.rows[0].total,
+                preguntas_activas: preguntasRes.rows[0].total,
+                partidos: partidosRes.rows[0].total,
+                tests_completados: quizStatsRes.rows[0].total_completados || 0,
+                tests_iniciados: quizStatsRes.rows[0].total_iniciados || 0,
+                promedio_eje_x: quizStatsRes.rows[0].prom_x || 0,
+                promedio_eje_y: quizStatsRes.rows[0].prom_y || 0
             },
             charts: {
-                activity: activityData,
-                scatter: scatterData,
-                top_questions: topQuestions,
+                activity: activityDataRes.rows,
+                scatter: scatterDataRes.rows,
+                top_questions: topQuestionsRes.rows,
                 top_parties: topParties
             }
         });

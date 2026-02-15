@@ -1,24 +1,5 @@
 import type { Request, Response } from 'express';
-import { pool } from '../config/db';
-import type { RowDataPacket } from 'mysql2';
-
-interface PartyResult extends RowDataPacket {
-    id: number;
-    nombre: string;
-    sigla: string;
-    posicion_x: number;
-    posicion_y: number;
-    logo_key: string;
-    color_primario: string;
-    candidato_presidencial: string;
-    candidato_key: string;
-}
-
-interface UserSession extends RowDataPacket {
-    resultado_x: number;
-    resultado_y: number;
-    completado: number;
-}
+import { pgPool } from '../config/supabase';
 
 export const getMatches = async (req: Request, res: Response) => {
     try {
@@ -29,10 +10,11 @@ export const getMatches = async (req: Request, res: Response) => {
         const isNumeric = /^\d+$/.test(idStr);
 
         // obtener resultados
-        let query = 'SELECT resultado_x, resultado_y, completado FROM UsuarioSesion WHERE ';
-        query += isNumeric ? 'id = ?' : 'token = ?';
+        let query = 'SELECT resultado_x, resultado_y, completado FROM usuariosesion WHERE ';
+        query += isNumeric ? 'id = $1' : 'token = $1';
 
-        const [userRows] = await pool.query<UserSession[]>(query, [idStr]);
+        const result = await pgPool.query(query, [idStr]);
+        const userRows = result.rows;
 
         if (userRows.length === 0) {
             return res.status(404).json({ error: 'Sesión no encontrada' });
@@ -45,21 +27,21 @@ export const getMatches = async (req: Request, res: Response) => {
         }
 
         // obtener posiciones
-        const [partyRows] = await pool.query<PartyResult[]>(`
+        const partyResult = await pgPool.query(`
             SELECT 
                 p.id, 
                 p.nombre, 
                 p.sigla, 
                 c.posicion_x, 
                 c.posicion_y,
-                pm.logo_key,
                 pm.color_primario,
                 pm.candidato_presidencial,
-                pm.candidato_key
-            FROM Partido p 
-            JOIN PartidoPosicionCache c ON p.id = c.partido_id
+                pm.plan_gobierno
+            FROM partido p 
+            JOIN partidoposicioncache c ON p.id = c.partido_id
             LEFT JOIN partido_metadata pm ON p.id = pm.partido_id
         `);
+        const partyRows = partyResult.rows;
 
         // calcular afinidad
         const MAX_DISTANCE = Math.sqrt(Math.pow(200, 2) + Math.pow(200, 2)); // distancia maxima

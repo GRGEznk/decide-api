@@ -1,13 +1,12 @@
 import type { Request, Response } from 'express';
-import { pool } from '../config/db';
-import type { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { pgPool } from '../config/supabase';
 
 // Obtener todos los candidatos (usando la vista)
 export const getAllCandidatos = async (req: Request, res: Response) => {
     try {
         const query = 'SELECT * FROM vista_candidatos ORDER BY id_partido, cargo, numero';
-        const [rows] = await pool.query(query);
-        res.json(rows);
+        const result = await pgPool.query(query);
+        res.json(result.rows);
     } catch (error) {
         console.error('Error al obtener candidatos:', error);
         res.status(500).json({ error: 'Error al obtener candidatos' });
@@ -18,8 +17,8 @@ export const getAllCandidatos = async (req: Request, res: Response) => {
 export const getAllRegiones = async (req: Request, res: Response) => {
     try {
         const query = 'SELECT * FROM region ORDER BY nombre ASC';
-        const [rows] = await pool.query(query);
-        res.json(rows);
+        const result = await pgPool.query(query);
+        res.json(result.rows);
     } catch (error) {
         console.error('Error al obtener regiones:', error);
         res.status(500).json({ error: 'Error al obtener regiones' });
@@ -30,14 +29,14 @@ export const getAllRegiones = async (req: Request, res: Response) => {
 export const getCandidatoById = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const query = 'SELECT * FROM vista_candidatos WHERE candidato_id = ?';
-        const [rows] = await pool.query<RowDataPacket[]>(query, [id]);
+        const query = 'SELECT * FROM vista_candidatos WHERE candidato_id = $1';
+        const result = await pgPool.query(query, [id]);
 
-        if (rows.length === 0) {
+        if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Candidato no encontrado' });
         }
 
-        res.json(rows[0]);
+        res.json(result.rows[0]);
     } catch (error) {
         console.error('Error al obtener candidato:', error);
         res.status(500).json({ error: 'Error al obtener candidato' });
@@ -48,9 +47,9 @@ export const getCandidatoById = async (req: Request, res: Response) => {
 export const getCandidatosByPartidoId = async (req: Request, res: Response) => {
     try {
         const { id_partido } = req.params;
-        const query = 'SELECT * FROM vista_candidatos WHERE id_partido = ?';
-        const [rows] = await pool.query(query, [id_partido]);
-        res.json(rows);
+        const query = 'SELECT * FROM vista_candidatos WHERE id_partido = $1';
+        const result = await pgPool.query(query, [id_partido]);
+        res.json(result.rows);
     } catch (error) {
         console.error('Error al obtener candidatos del partido:', error);
         res.status(500).json({ error: 'Error al obtener candidatos del partido' });
@@ -68,10 +67,11 @@ export const createCandidato = async (req: Request, res: Response) => {
 
         const query = `
             INSERT INTO candidato (nombres, apellidos, cargo, numero, id_region, foto, hojavida, id_partido)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id
         `;
 
-        const [result] = await pool.query<ResultSetHeader>(query, [
+        const result = await pgPool.query(query, [
             nombres,
             apellidos,
             cargo,
@@ -84,7 +84,7 @@ export const createCandidato = async (req: Request, res: Response) => {
 
         res.status(201).json({
             message: 'Candidato creado exitosamente',
-            id: result.insertId,
+            id: result.rows[0].id,
             nombres,
             apellidos
         });
@@ -107,11 +107,11 @@ export const updateCandidato = async (req: Request, res: Response) => {
 
         const query = `
             UPDATE candidato 
-            SET nombres = ?, apellidos = ?, cargo = ?, numero = ?, id_region = ?, foto = ?, hojavida = ?, id_partido = ?
-            WHERE id = ?
+            SET nombres = $1, apellidos = $2, cargo = $3, numero = $4, id_region = $5, foto = $6, hojavida = $7, id_partido = $8
+            WHERE id = $9
         `;
 
-        const [result] = await pool.query<ResultSetHeader>(query, [
+        const result = await pgPool.query(query, [
             nombres,
             apellidos,
             cargo,
@@ -123,7 +123,7 @@ export const updateCandidato = async (req: Request, res: Response) => {
             id
         ]);
 
-        if (result.affectedRows === 0) {
+        if (result.rowCount === 0) {
             return res.status(404).json({ error: 'Candidato no encontrado' });
         }
 
@@ -139,10 +139,10 @@ export const updateCandidato = async (req: Request, res: Response) => {
 export const deleteCandidato = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const query = 'DELETE FROM candidato WHERE id = ?';
-        const [result] = await pool.query<ResultSetHeader>(query, [id]);
+        const query = 'DELETE FROM candidato WHERE id = $1';
+        const result = await pgPool.query(query, [id]);
 
-        if (result.affectedRows === 0) {
+        if (result.rowCount === 0) {
             return res.status(404).json({ error: 'Candidato no encontrado' });
         }
 

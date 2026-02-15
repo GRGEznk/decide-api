@@ -1,6 +1,5 @@
 import type { Request, Response } from 'express';
-import { pool } from '../config/db';
-import type { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { pgPool } from '../config/supabase';
 
 export const startSession = async (req: Request, res: Response) => {
     try {
@@ -9,22 +8,22 @@ export const startSession = async (req: Request, res: Response) => {
 
         // Validar si el usuario existe antes de insertar (evita error de FK)
         if (usuario_id) {
-            const [user] = await pool.query<RowDataPacket[]>(
-                'SELECT id FROM usuario WHERE id = ?',
+            const user = await pgPool.query(
+                'SELECT id FROM usuario WHERE id = $1',
                 [usuario_id]
             );
-            if (user.length > 0) {
+            if (user.rows.length > 0) {
                 validUserId = usuario_id;
             } else {
                 console.warn(`Intento de inicio de sesión con usuario_id inexistente: ${usuario_id}. Se procede como anónimo.`);
             }
         }
 
-        const [result] = await pool.query(
-            'INSERT INTO UsuarioSesion (usuario_id) VALUES (?)',
+        const result = await pgPool.query(
+            'INSERT INTO usuariosesion (usuario_id) VALUES ($1) RETURNING id',
             [validUserId]
         );
-        const insertId = (result as ResultSetHeader).insertId;
+        const insertId = result.rows[0].id;
 
         res.status(201).json({
             session_id: insertId,
@@ -52,10 +51,11 @@ export const linkSessionWithUser = async (req: Request, res: Response) => {
         const isNumeric = /^\d+$/.test(idStr);
 
         // 1. Verificar si la sesión existe y es anónima
-        let query = 'SELECT usuario_id FROM UsuarioSesion WHERE ';
-        query += isNumeric ? 'id = ?' : 'token = ?';
+        let query = 'SELECT usuario_id FROM usuariosesion WHERE ';
+        query += isNumeric ? 'id = $1' : 'token = $1';
 
-        const [sessionRows] = await pool.query<RowDataPacket[]>(query, [idStr]);
+        const sessionResult = await pgPool.query(query, [idStr]);
+        const sessionRows = sessionResult.rows;
 
         if (sessionRows.length === 0) {
             return res.status(404).json({ error: 'Sesión no encontrada' });
@@ -66,10 +66,10 @@ export const linkSessionWithUser = async (req: Request, res: Response) => {
         }
 
         // 2. Vincular (usamos la misma lógica de búsqueda para el UPDATE)
-        let updateQuery = 'UPDATE UsuarioSesion SET usuario_id = ? WHERE ';
-        updateQuery += isNumeric ? 'id = ?' : 'token = ?';
+        let updateQuery = 'UPDATE usuariosesion SET usuario_id = $1 WHERE ';
+        updateQuery += isNumeric ? 'id = $2' : 'token = $2';
         
-        await pool.query(updateQuery, [usuario_id, idStr]);
+        await pgPool.query(updateQuery, [usuario_id, idStr]);
 
         res.json({ message: 'Sesión vinculada correctamente' });
 
@@ -80,48 +80,45 @@ export const linkSessionWithUser = async (req: Request, res: Response) => {
 };
 
 export const saveAnswers = async (req: Request, res: Response) => {
+    const client = await pgPool.connect();
     try {
-        const { session_id, answers } = req.body; // respuesta
+        const { session_id, answers } = req.body;
 
         if (!session_id || !Array.isArray(answers)) {
             return res.status(400).json({ error: 'Datos inválidos' });
         }
 
-        const connection = await pool.getConnection();
+        await client.query('BEGIN');
 
-        try {
-            await connection.beginTransaction();
+        for (const ans of answers) {
+            const { pregunta_id, valor } = ans;
 
-            for (const ans of answers) {
-                const { pregunta_id, valor } = ans;
-
-                // validar rango
-                if (valor < -2 || valor > 2) {
-                    throw new Error(`Valor inválido para pregunta ${pregunta_id}: ${valor}`);
-                }
-
-                await connection.query(
-                    'INSERT INTO UsuarioRespuesta (sesion_id, pregunta_id, valor) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE valor = VALUES(valor)',
-                    [session_id, pregunta_id, valor]
-                );
+            // validar rango
+            if (valor < -2 || valor > 2) {
+                throw new Error(`Valor inválido para pregunta ${pregunta_id}: ${valor}`);
             }
 
-            // Forzar cálculo de resultados
-            await connection.query('CALL CalcularPosicionUsuario(?)', [session_id]);
-
-            await connection.commit();
-            res.json({ message: 'Respuestas guardadas y resultados calculados' });
-
-        } catch (error: any) {
-            await connection.rollback();
-            throw error;
-        } finally {
-            connection.release();
+            await client.query(
+                `INSERT INTO usuariorespuesta (sesion_id, pregunta_id, valor) 
+                 VALUES ($1, $2, $3) 
+                 ON CONFLICT (sesion_id, pregunta_id) 
+                 DO UPDATE SET valor = EXCLUDED.valor`,
+                [session_id, pregunta_id, valor]
+            );
         }
 
+        // Forzar cálculo de resultados - En PostgreSQL suele ser una función
+        await client.query('SELECT CalcularPosicionUsuario($1)', [session_id]);
+
+        await client.query('COMMIT');
+        res.json({ message: 'Respuestas guardadas y resultados calculados' });
+
     } catch (error: any) {
+        await client.query('ROLLBACK');
         console.error('Error al guardar respuestas:', error);
         res.status(500).json({ error: error.message || 'Error al guardar respuestas' });
+    } finally {
+        client.release();
     }
 };
 
@@ -134,10 +131,11 @@ export const getSession = async (req: Request, res: Response) => {
         const idStr = String(id);
         const isNumeric = /^\d+$/.test(idStr);
 
-        let query = 'SELECT * FROM UsuarioSesion WHERE ';
-        query += isNumeric ? 'id = ?' : 'token = ?';
+        let query = 'SELECT * FROM usuariosesion WHERE ';
+        query += isNumeric ? 'id = $1' : 'token = $1';
 
-        const [rows] = await pool.query<RowDataPacket[]>(query, [idStr]);
+        const result = await pgPool.query(query, [idStr]);
+        const rows = result.rows;
 
         if (rows.length === 0 || !rows[0]) {
             return res.status(404).json({ error: 'Sesión no encontrada' });
@@ -159,24 +157,25 @@ export const getAllSessions = async (req: Request, res: Response) => {
                 us.*, 
                 u.nombre as usuario_nombre,
                 u.email as usuario_email
-            FROM UsuarioSesion us
+            FROM usuariosesion us
             LEFT JOIN usuario u ON us.usuario_id = u.id
             WHERE 1=1
         `;
         const params: any[] = [];
+        let paramCount = 1;
 
         if (completado !== undefined && completado !== '') {
-            query += ' AND us.completado = ?';
+            query += ` AND us.completado = $${paramCount++}`;
             params.push(completado === '1' ? 1 : 0);
         }
 
         if (fecha_inicio) {
-            query += ' AND us.fecha >= ?';
+            query += ` AND us.fecha >= $${paramCount++}`;
             params.push(fecha_inicio);
         }
 
         if (fecha_fin) {
-            query += ' AND us.fecha <= ?';
+            query += ` AND us.fecha <= $${paramCount++}`;
             params.push(`${fecha_fin} 23:59:59`);
         }
 
@@ -184,15 +183,15 @@ export const getAllSessions = async (req: Request, res: Response) => {
             if (usuario_id === 'null') {
                 query += ' AND us.usuario_id IS NULL';
             } else {
-                query += ' AND us.usuario_id = ?';
+                query += ` AND us.usuario_id = $${paramCount++}`;
                 params.push(usuario_id);
             }
         }
 
         query += ' ORDER BY us.fecha DESC';
 
-        const [rows] = await pool.query<RowDataPacket[]>(query, params);
-        res.json(rows);
+        const result = await pgPool.query(query, params);
+        res.json(result.rows);
     } catch (error) {
         console.error('Error al obtener sesiones:', error);
         res.status(500).json({ error: 'Error al obtener sesiones' });
