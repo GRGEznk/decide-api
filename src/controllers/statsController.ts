@@ -30,7 +30,7 @@ export const getStats = async (req: Request, res: Response) => {
         const scatterDataRes = await pgPool.query(`
             SELECT resultado_x as x, resultado_y as y 
             FROM usuariosesion 
-            WHERE completado = 1 
+            WHERE completado = true 
             ORDER BY fecha DESC 
             LIMIT 500
         `);
@@ -53,7 +53,7 @@ export const getStats = async (req: Request, res: Response) => {
         const sessionsDataRes = await pgPool.query(`
             SELECT resultado_x, resultado_y 
             FROM usuariosesion 
-            WHERE completado = 1
+            WHERE completado = true
         `);
 
         // algoritmo cercania

@@ -4,7 +4,25 @@ import { pgPool } from '../config/supabase';
 // Obtener todos los candidatos (usando la vista)
 export const getAllCandidatos = async (req: Request, res: Response) => {
     try {
-        const query = 'SELECT * FROM vista_candidatos ORDER BY id_partido, cargo, numero';
+        const query = `
+            SELECT 
+                c.id as candidato_id, 
+                c.nombres, 
+                c.apellidos, 
+                c.cargo, 
+                c.numero, 
+                c.id_region, 
+                r.nombre as region,
+                c.foto, 
+                c.hojavida, 
+                c.id_partido,
+                p.nombre as nombre_partido,
+                p.sigla
+            FROM candidato c
+            JOIN partido p ON c.id_partido = p.id
+            LEFT JOIN region r ON c.id_region = r.id
+            ORDER BY c.id_partido, c.cargo, c.numero
+        `;
         const result = await pgPool.query(query);
         res.json(result.rows);
     } catch (error) {
@@ -29,7 +47,25 @@ export const getAllRegiones = async (req: Request, res: Response) => {
 export const getCandidatoById = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const query = 'SELECT * FROM vista_candidatos WHERE candidato_id = $1';
+        const query = `
+            SELECT 
+                c.id as candidato_id, 
+                c.nombres, 
+                c.apellidos, 
+                c.cargo, 
+                c.numero, 
+                c.id_region, 
+                r.nombre as region,
+                c.foto, 
+                c.hojavida, 
+                c.id_partido,
+                p.nombre as nombre_partido,
+                p.sigla
+            FROM candidato c
+            JOIN partido p ON c.id_partido = p.id
+            LEFT JOIN region r ON c.id_region = r.id
+            WHERE c.id = $1
+        `;
         const result = await pgPool.query(query, [id]);
 
         if (result.rows.length === 0) {
@@ -47,7 +83,25 @@ export const getCandidatoById = async (req: Request, res: Response) => {
 export const getCandidatosByPartidoId = async (req: Request, res: Response) => {
     try {
         const { id_partido } = req.params;
-        const query = 'SELECT * FROM vista_candidatos WHERE id_partido = $1';
+        const query = `
+            SELECT 
+                c.id as candidato_id, 
+                c.nombres, 
+                c.apellidos, 
+                c.cargo, 
+                c.numero, 
+                c.id_region, 
+                r.nombre as region,
+                c.foto, 
+                c.hojavida, 
+                c.id_partido,
+                p.nombre as nombre_partido,
+                p.sigla
+            FROM candidato c
+            JOIN partido p ON c.id_partido = p.id
+            LEFT JOIN region r ON c.id_region = r.id
+            WHERE c.id_partido = $1
+        `;
         const result = await pgPool.query(query, [id_partido]);
         res.json(result.rows);
     } catch (error) {

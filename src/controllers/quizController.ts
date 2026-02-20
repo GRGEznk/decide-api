@@ -107,16 +107,22 @@ export const saveAnswers = async (req: Request, res: Response) => {
             );
         }
 
-        // Forzar cálculo de resultados - En PostgreSQL suele ser una función
-        await client.query('SELECT CalcularPosicionUsuario($1)', [session_id]);
+        // El cálculo de resultados ya lo hace el trigger 'actualizar_posicion_usuario'
+        // en PostgreSQL después de insertar todas las respuestas.
+        // Solo llamar manualmente si es estrictamente necesario o para asegurar.
+        await client.query('SELECT calcular_posicion_usuario($1::integer)', [session_id]);
 
         await client.query('COMMIT');
         res.json({ message: 'Respuestas guardadas y resultados calculados' });
 
     } catch (error: any) {
         await client.query('ROLLBACK');
-        console.error('Error al guardar respuestas:', error);
-        res.status(500).json({ error: error.message || 'Error al guardar respuestas' });
+        console.error('Error detallado al guardar respuestas:', error);
+        res.status(500).json({ 
+            error: 'Error al guardar respuestas', 
+            details: error.message,
+            hint: 'Verifica que la función calcular_posicion_usuario existe en Postgres'
+        });
     } finally {
         client.release();
     }

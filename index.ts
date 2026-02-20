@@ -11,7 +11,7 @@ import candidatoRoutes from './src/routes/candidatoRoutes';
 const app = express();
 const port = 3001;
 
-// CORS para permitir peticiones del frontend
+// CORS para permitir peticiones del frontend...
 app.use(cors());
 app.use(express.json());
 

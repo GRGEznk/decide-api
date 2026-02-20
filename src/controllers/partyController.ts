@@ -66,24 +66,23 @@ export const getPartyBySigla = async (req: Request, res: Response) => {
 
 export const getPartyPositions = async (req: Request, res: Response) => {
     try {
-        const { data, error } = await supabase
-            .from('partido')
-            .select(`
-                id,
-                nombre,
-                sigla,
-                partidoposicioncache (
-                    posicion_x,
-                    posicion_y,
-                    fecha_calculo
-                ),
-                partido_metadata (
-                    color_primario
-                )
-            `);
-
-        if (error) throw error;
-        res.json(data);
+        const query = `
+            SELECT 
+                p.id, 
+                p.nombre, 
+                p.sigla, 
+                ppc.posicion_x, 
+                ppc.posicion_y, 
+                ppc.fecha_calculo,
+                pm.color_primario
+            FROM partido p
+            LEFT JOIN partidoposicioncache ppc ON p.id = ppc.partido_id
+            LEFT JOIN partido_metadata pm ON p.id = pm.partido_id
+            ORDER BY p.nombre
+        `;
+        
+        const result = await pgPool.query(query);
+        res.json(result.rows);
     } catch (error) {
         console.error('Error al obtener posiciones:', error);
         res.status(500).json({ error: 'Error al obtener posiciones' });
