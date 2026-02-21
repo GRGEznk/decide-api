@@ -3,58 +3,59 @@ import { pgPool } from '../config/supabase';
 
 export const getStats = async (req: Request, res: Response) => {
     try {
-        // 1. contadores basicos
-        const usuariosRes = await pgPool.query('SELECT COUNT(*) as total FROM usuario');
-        const preguntasRes = await pgPool.query("SELECT COUNT(*) as total FROM pregunta WHERE estado = 'activa'");
-        const partidosRes = await pgPool.query('SELECT COUNT(*) as total FROM partido');
-
-        // 2. estadisticas quiz
-        const quizStatsRes = await pgPool.query(`
-            SELECT 
-                SUM(completadas) as total_completados, 
-                SUM(total_sesiones) as total_iniciados,
-                AVG(promedio_x) as prom_x,
-                AVG(promedio_y) as prom_y
-            FROM vistaestadisticasquiz
-        `);
-
-        // 3. grafico actividad
-        const activityDataRes = await pgPool.query(`
-            SELECT fecha, total_sesiones, completadas 
-            FROM vistaestadisticasquiz 
-            ORDER BY fecha DESC 
-            LIMIT 30
-        `);
-
-        // 4. dispersion brujula
-        const scatterDataRes = await pgPool.query(`
-            SELECT resultado_x as x, resultado_y as y 
-            FROM usuariosesion 
-            WHERE completado = true 
-            ORDER BY fecha DESC 
-            LIMIT 500
-        `);
-
-        // 5. top preguntas
-        const topQuestionsRes = await pgPool.query(`
-            SELECT texto, total_respuestas 
-            FROM vistapreguntasestadisticas 
-            ORDER BY total_respuestas DESC 
-            LIMIT 5
-        `);
-
-        // 6. top partidos
-        const partiesDataRes = await pgPool.query(`
-            SELECT p.id, p.nombre_largo, ppc.posicion_x, ppc.posicion_y 
-            FROM partidoposicioncache ppc
-            JOIN partido p ON ppc.partido_id = p.id
-        `);
-
-        const sessionsDataRes = await pgPool.query(`
-            SELECT resultado_x, resultado_y 
-            FROM usuariosesion 
-            WHERE completado = true
-        `);
+        // Ejecutar todas las consultas independientes en paralelo
+        const [
+            usuariosRes,
+            preguntasRes,
+            partidosRes,
+            quizStatsRes,
+            activityDataRes,
+            scatterDataRes,
+            topQuestionsRes,
+            partiesDataRes,
+            sessionsDataRes
+        ] = await Promise.all([
+            pgPool.query('SELECT COUNT(*) as total FROM usuario'),
+            pgPool.query("SELECT COUNT(*) as total FROM pregunta WHERE estado = 'activa'"),
+            pgPool.query('SELECT COUNT(*) as total FROM partido'),
+            pgPool.query(`
+                SELECT 
+                    SUM(completadas) as total_completados, 
+                    SUM(total_sesiones) as total_iniciados,
+                    AVG(promedio_x) as prom_x,
+                    AVG(promedio_y) as prom_y
+                FROM vistaestadisticasquiz
+            `),
+            pgPool.query(`
+                SELECT fecha, total_sesiones, completadas 
+                FROM vistaestadisticasquiz 
+                ORDER BY fecha DESC 
+                LIMIT 30
+            `),
+            pgPool.query(`
+                SELECT resultado_x as x, resultado_y as y 
+                FROM usuariosesion 
+                WHERE completado = true 
+                ORDER BY fecha DESC 
+                LIMIT 500
+            `),
+            pgPool.query(`
+                SELECT texto, total_respuestas 
+                FROM vistapreguntasestadisticas 
+                ORDER BY total_respuestas DESC 
+                LIMIT 5
+            `),
+            pgPool.query(`
+                SELECT p.id, p.nombre_largo, ppc.posicion_x, ppc.posicion_y 
+                FROM partidoposicioncache ppc
+                JOIN partido p ON ppc.partido_id = p.id
+            `),
+            pgPool.query(`
+                SELECT resultado_x, resultado_y 
+                FROM usuariosesion 
+                WHERE completado = true
+            `)
+        ]);
 
         // algoritmo cercania
         const partyCounts: Record<string, number> = {};
